@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   SectionList,
-  FlatList,
   StyleSheet,
   TextInput,
   Alert,
@@ -285,6 +284,17 @@ Sois direct et motivant, comme un vrai coach.`;
     e.muscle_group.toLowerCase().includes(exerciseFilter.toLowerCase())
   );
 
+  const exerciseSections = (() => {
+    const grouped: Record<string, Exercise[]> = {};
+    filteredExercises.forEach((e) => {
+      if (!grouped[e.muscle_group]) grouped[e.muscle_group] = [];
+      grouped[e.muscle_group].push(e);
+    });
+    return Object.entries(grouped)
+      .sort(([a], [b]) => a.localeCompare(b, 'fr'))
+      .map(([title, data]) => ({ title, data }));
+  })();
+
   const volume = sessionSets.reduce((sum, s) => sum + s.weight * s.repetitions, 0);
 
   return (
@@ -440,9 +450,14 @@ Sois direct et motivant, comme un vrai coach.`;
             autoFocus
           />
         </View>
-        <FlatList
-          data={filteredExercises}
+        <SectionList
+          sections={exerciseSections}
           keyExtractor={(item) => item.id}
+          renderSectionHeader={({ section: { title } }) => (
+            <View style={styles.categoryHeader}>
+              <Text style={styles.categoryHeaderText}>{title}</Text>
+            </View>
+          )}
           renderItem={({ item }) => (
             <ExerciseCard
               exercise={item}
@@ -454,6 +469,7 @@ Sois direct et motivant, comme un vrai coach.`;
           )}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          stickySectionHeadersEnabled
         />
       </Modal>
 
@@ -700,6 +716,11 @@ const styles = StyleSheet.create({
     borderColor: '#2a2a35', paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12,
   },
   searchInput: { flex: 1, color: '#f0f0f0', fontSize: 15 },
+  categoryHeader: {
+    backgroundColor: '#1a1a22', paddingHorizontal: 14, paddingVertical: 7,
+    borderBottomWidth: 1, borderBottomColor: '#2a2a35',
+  },
+  categoryHeaderText: { color: '#c8f060', fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
   addSetContent: { gap: 16 },
   setInputs: { flexDirection: 'row', gap: 10 },
   setInput: { flex: 1, gap: 6 },

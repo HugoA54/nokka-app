@@ -1,4 +1,4 @@
-import type { AIMacroResult } from "@types/index";
+import type { AIMacroResult, ProgressionRecommendation } from "@types/index";
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY!;
 const GEMINI_API_URL =
@@ -146,6 +146,54 @@ class GeminiService {
     }
 
     return result;
+  }
+
+  async analyzeProgressiveOverload(exercisesData: string): Promise<ProgressionRecommendation[]> {
+    if (!this.apiKey) throw new Error('Gemini API key not configured.');
+
+    const prompt = `Tu es un coach expert en musculation. Analyse les performances récentes ci-dessous et génère des recommandations de surcharge progressive pour la prochaine séance.
+
+Applique ces règles :
+- Si RPE ≤ 7 ou si toutes les séries ont été complétées facilement → augmente le poids (+2.5kg pour haut du corps, +5kg pour bas du corps)
+- Si RPE 8-9 → garde le même poids mais tente +1 rep par série
+- Si RPE 10 ou échec → réduis légèrement le volume ou garde identique
+- Pour les exercices au poids de corps → augmente les reps ou les séries
+
+Retourne UNIQUEMENT un tableau JSON valide (sans markdown, sans explication) avec ce format exact :
+[
+  {
+    "exerciseId": "id exact fourni",
+    "exerciseName": "nom exact fourni",
+    "targetWeight": number,
+    "targetReps": number,
+    "targetSets": number,
+    "tip": "conseil motivant court en français (max 60 chars)"
+  }
+]
+
+Données des exercices :
+${exercisesData}`;
+
+    const body = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.3, topK: 32, topP: 1 },
+    };
+
+    const response = await fetch(`${GEMINI_API_URL}?key=${this.apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) throw new Error(`Gemini API error ${response.status}`);
+
+    const json = await response.json();
+    const text: string | undefined = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('Gemini returned an empty response.');
+
+    const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    const parsed: ProgressionRecommendation[] = JSON.parse(cleaned);
+    return parsed;
   }
 
   async analyzeWorkoutSession(prompt: string): Promise<string> {

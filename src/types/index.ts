@@ -254,6 +254,15 @@ export interface AIMacroResult {
   lipides: number;
 }
 
+export interface ProgressionRecommendation {
+  exerciseId: string;
+  exerciseName: string;
+  targetWeight: number;
+  targetReps: number;
+  targetSets: number;
+  tip: string;
+}
+
 export interface AIMeal {
   id: number;
   name: string;

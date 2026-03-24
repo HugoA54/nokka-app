@@ -20,9 +20,10 @@ import { SetCard } from '@components/workout/SetCard';
 import { ExerciseCard } from '@components/workout/ExerciseCard';
 import { RestTimer } from '@components/workout/RestTimer';
 import { Modal } from '@components/ui/Modal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from '@hooks/useToast';
 import { useHaptics } from '@hooks/useHaptics';
-import type { Exercise, WorkoutSet } from '@types/index';
+import type { Exercise, WorkoutSet, ProgressionRecommendation } from '@types/index';
 
 type SessionSection = {
   exerciseId: string;
@@ -69,6 +70,10 @@ export default function SessionDetailScreen() {
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiRecommendations, setAiRecommendations] = useState<ProgressionRecommendation[]>([]);
+  const [isLoadingRecs, setIsLoadingRecs] = useState(false);
+  const [showRecs, setShowRecs] = useState(true);
+  const hasLoadedRecs = useRef(false);
   const noteSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const session = sessions.find((s) => String(s.id) === String(id));
@@ -106,6 +111,52 @@ export default function SessionDetailScreen() {
       setNote(session.note ?? '');
     }
   }, [loadData, session?.name]);
+
+  const generateRecommendations = useCallback(async (currentSections: typeof sections) => {
+    if (hasLoadedRecs.current || currentSections.length === 0 || !id) return;
+    hasLoadedRecs.current = true;
+
+    const cacheKey = `recs_${id}`;
+
+    // Load from cache if already generated for this session
+    try {
+      const cached = await AsyncStorage.getItem(cacheKey);
+      if (cached) {
+        setAiRecommendations(JSON.parse(cached));
+        return;
+      }
+    } catch {}
+
+    // First time: call Gemini
+    setIsLoadingRecs(true);
+
+    const exercisesData = currentSections.map((section) => {
+      const prevSets = getLastSessionSetsForExercise(section.exerciseId, id);
+      if (prevSets.length === 0) return null;
+      const setsText = prevSets
+        .map((s, i) => `  Série ${i + 1}: ${s.weight}kg × ${s.repetitions} reps${s.rpe ? ` (RPE ${s.rpe})` : ''}`)
+        .join('\n');
+      return `Exercice: ${section.exerciseName}\nID: ${section.exerciseId}\nDernière séance:\n${setsText}`;
+    }).filter(Boolean).join('\n\n');
+
+    if (!exercisesData) { setIsLoadingRecs(false); return; }
+
+    try {
+      const recs = await geminiService.analyzeProgressiveOverload(exercisesData);
+      setAiRecommendations(recs);
+      await AsyncStorage.setItem(cacheKey, JSON.stringify(recs));
+    } catch {
+      // Silent fail — recommendations are optional
+    } finally {
+      setIsLoadingRecs(false);
+    }
+  }, [id, getLastSessionSetsForExercise]);
+
+  useEffect(() => {
+    if (sections.length > 0 && !hasLoadedRecs.current) {
+      generateRecommendations(sections);
+    }
+  }, [sections.length]);
 
 
   const triggerChallengeEval = useCallback(() => {
@@ -408,6 +459,48 @@ Sois direct et motivant, comme un vrai coach.`;
               multiline
               numberOfLines={2}
             />
+
+            {/* AI Progressive Overload Recommendations */}
+            {(isLoadingRecs || (aiRecommendations.length > 0 && showRecs)) && (
+              <View style={styles.recsCard}>
+                <View style={styles.recsHeader}>
+                  <Ionicons name="sparkles" size={14} color="#c8f060" />
+                  <Text style={styles.recsTitle}>Recommandations surcharge progressive</Text>
+                  {!isLoadingRecs && (
+                    <TouchableOpacity
+                      onPress={() => setShowRecs(false)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="close" size={16} color="#5a5a70" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {isLoadingRecs ? (
+                  <View style={styles.recsLoading}>
+                    <Ionicons name="sparkles" size={16} color="#3a3a4a" />
+                    <Text style={styles.recsLoadingText}>Analyse de tes dernières séances…</Text>
+                  </View>
+                ) : (
+                  aiRecommendations.map((rec) => (
+                    <View key={rec.exerciseId} style={styles.recRow}>
+                      <Text style={styles.recExName}>{rec.exerciseName}</Text>
+                      <View style={styles.recTargets}>
+                        <View style={styles.recChip}>
+                          <Text style={styles.recChipText}>{rec.targetSets}×{rec.targetReps}</Text>
+                          <Text style={styles.recChipSub}>séries×reps</Text>
+                        </View>
+                        {rec.targetWeight > 0 && (
+                          <View style={[styles.recChip, styles.recChipHighlight]}>
+                            <Text style={[styles.recChipText, styles.recChipTextHighlight]}>{rec.targetWeight}kg</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.recTip}>{rec.tip}</Text>
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
           </View>
         }
         ListEmptyComponent={
@@ -783,4 +876,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a22', borderRadius: 8, borderWidth: 1, borderColor: '#2a2a35',
   },
   aiRetryText: { color: '#7a7a90', fontSize: 12 },
+  recsCard: {
+    backgroundColor: '#0f1a08', borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: 'rgba(200,240,96,0.2)', gap: 8,
+  },
+  recsHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(200,240,96,0.1)', paddingBottom: 8,
+  },
+  recsTitle: { color: '#c8f060', fontSize: 12, fontWeight: '700', flex: 1 },
+  recsLoading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
+  recsLoadingText: { color: '#3a3a4a', fontSize: 13 },
+  recRow: {
+    backgroundColor: '#161c0e', borderRadius: 10, padding: 10, gap: 4,
+    borderWidth: 1, borderColor: 'rgba(200,240,96,0.08)',
+  },
+  recExName: { color: '#e0e0e0', fontSize: 13, fontWeight: '700' },
+  recTargets: { flexDirection: 'row', gap: 6, marginTop: 4 },
+  recChip: {
+    flexDirection: 'row', alignItems: 'baseline', gap: 3,
+    backgroundColor: '#2a2a35', borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 4,
+  },
+  recChipHighlight: { backgroundColor: 'rgba(200,240,96,0.12)', borderWidth: 1, borderColor: 'rgba(200,240,96,0.3)' },
+  recChipText: { color: '#f0f0f0', fontSize: 14, fontWeight: '700' },
+  recChipTextHighlight: { color: '#c8f060' },
+  recChipSub: { color: '#5a5a70', fontSize: 10 },
+  recTip: { color: '#7a7a90', fontSize: 12, fontStyle: 'italic', marginTop: 2 },
 });

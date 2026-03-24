@@ -15,6 +15,7 @@ import { useWorkoutStore } from '@store/workoutStore';
 import { useMacroAIStore } from '@store/macroAIStore';
 import { useNutritionStore } from '@store/nutritionStore';
 import { MacroSummary } from '@components/dashboard/MacroSummary';
+import { CreatineCard } from '@components/dashboard/CreatineCard';
 import { MacroSummarySkeleton, SessionCardSkeleton } from '@components/ui/LoadingSkeleton';
 import { saveWidgetData } from '@widgets/widgetTaskHandler';
 import { requestWidgetUpdate } from 'react-native-android-widget';
@@ -237,6 +238,9 @@ export default function DashboardScreen() {
           />
         )}
       </View>
+
+      {/* Creatine Reminder */}
+      <CreatineCard />
 
       {/* Quick Actions */}
       <View style={styles.section}>

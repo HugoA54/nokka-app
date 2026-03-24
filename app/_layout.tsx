@@ -14,6 +14,7 @@ import { AchievementToast } from '@components/ui/AchievementToast';
 import { useChallengeStore } from '@store/challengeStore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { setupTimerNotificationChannel, requestTimerPermissions } from '@services/timerNotifications';
+import { initCreatineReminder } from '@services/creatineReminder';
 import { useNetworkSync } from '@hooks/useNetworkSync';
 import { registerWidgetTaskHandler } from 'react-native-android-widget';
 import { widgetTaskHandler } from '@widgets/widgetTaskHandler';
@@ -56,6 +57,7 @@ export default function RootLayout() {
     hideNavBar();
     setupTimerNotificationChannel();
     requestTimerPermissions();
+    initCreatineReminder();
 
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') hideNavBar();

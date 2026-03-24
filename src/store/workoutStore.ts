@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@services/supabase';
 import { enqueue, dequeueAll, clearQueue } from '@services/offlineQueue';
 import { calculate1RM, calculateDailyMetrics } from '@services/calorieCalculations';
-import { showRestTimerNotification, cancelRestTimerNotifications } from '@services/timerNotifications';
+import { startBackgroundTimer, stopBackgroundTimer } from '@services/backgroundTimer';
 import type {
   Exercise,
   Session,
@@ -481,13 +481,13 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     const endTime = Date.now() + duration * 1000;
     await AsyncStorage.setItem(REST_TIMER_KEY, String(endTime));
     set({ restDuration: duration, restEndTime: endTime, isRestTimerActive: true });
-    try { await showRestTimerNotification(duration); } catch {}
+    try { await startBackgroundTimer(duration); } catch {}
   },
 
   clearRestTimer: async () => {
     await AsyncStorage.removeItem(REST_TIMER_KEY);
     set({ restEndTime: null, isRestTimerActive: false });
-    cancelRestTimerNotifications().catch(() => {});
+    stopBackgroundTimer().catch(() => {});
   },
 
   resumeRestTimer: async () => {
@@ -499,11 +499,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       const stored = await AsyncStorage.getItem(REST_TIMER_KEY);
       if (stored) {
         const endTime = Number(stored);
-        if (endTime > Date.now()) {
-          set({ restEndTime: endTime, isRestTimerActive: true });
-        } else {
-          await AsyncStorage.removeItem(REST_TIMER_KEY);
-        }
+        // Resume even if expired — RestTimer will enter overtime with vibration
+        set({ restEndTime: endTime, isRestTimerActive: true });
       }
     } catch (error) {
       console.error('[workoutStore] resumeRestTimer:', error);

@@ -5,80 +5,98 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Platform,
+  Vibration,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import * as IntentLauncher from 'expo-intent-launcher';
 import { useWorkoutStore } from '@store/workoutStore';
-import { dismissOngoingTimerNotification, cancelRestTimerNotifications } from '@services/timerNotifications';
 
-function launchNativeTimer(seconds: number) {
-  IntentLauncher.startActivityAsync('android.intent.action.SET_TIMER', {
-    extra: {
-      'android.intent.extra.alarm.LENGTH': seconds,
-      'android.intent.extra.alarm.SKIP_UI': true,
-      'android.intent.extra.alarm.MESSAGE': 'Repos Nokka',
-    },
-  }).catch(() => {});
-}
+// Vibration pattern: wait 0ms, vibrate 500ms, pause 300ms, vibrate 500ms (repeats)
+const VIBRATION_PATTERN = [0, 500, 300, 500];
 
 export function RestTimer() {
   const { restEndTime, isRestTimerActive, clearRestTimer, startRestTimer, restDuration } =
     useWorkoutStore();
   const [secondsLeft, setSecondsLeft] = useState(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
+  const hasEnteredOvertime = useRef(false);
+
+  const handleStop = () => {
+    Vibration.cancel();
+    pulseLoop.current?.stop();
+    pulseAnim.setValue(1);
+    hasEnteredOvertime.current = false;
+    clearRestTimer();
+  };
 
   useEffect(() => {
     if (!isRestTimerActive || !restEndTime) return;
 
+    hasEnteredOvertime.current = false;
+
     const interval = setInterval(() => {
-      const remaining = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
+      const remaining = Math.ceil((restEndTime - Date.now()) / 1000);
       setSecondsLeft(remaining);
 
-      if (remaining === 0) {
-        dismissOngoingTimerNotification().catch(() => {});
-        clearInterval(interval);
-        clearRestTimer();
+      // Crossed into overtime
+      if (remaining <= 0 && !hasEnteredOvertime.current) {
+        hasEnteredOvertime.current = true;
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.15, duration: 150, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
-        ]).start();
+        Vibration.vibrate(VIBRATION_PATTERN, true);
+
+        // Start looping pulse animation
+        pulseLoop.current = Animated.loop(
+          Animated.sequence([
+            Animated.timing(pulseAnim, { toValue: 1.06, duration: 400, useNativeDriver: true }),
+            Animated.timing(pulseAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+          ])
+        );
+        pulseLoop.current.start();
       }
     }, 250);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      Vibration.cancel();
+      pulseLoop.current?.stop();
+      pulseAnim.setValue(1);
+    };
   }, [restEndTime, isRestTimerActive]);
 
   if (!isRestTimerActive) return null;
 
-  const totalSecs = restDuration;
-  const progress = totalSecs > 0 ? Math.max(0, secondsLeft / totalSecs) : 0;
-  const mins = Math.floor(secondsLeft / 60);
-  const secs = secondsLeft % 60;
+  const isOvertime = secondsLeft <= 0;
+  const displaySecs = Math.abs(secondsLeft);
+  const mins = Math.floor(displaySecs / 60);
+  const secs = displaySecs % 60;
+  const timeStr = `${isOvertime ? '+' : ''}${mins}:${String(secs).padStart(2, '0')}`;
+
   const isLow = secondsLeft <= 10 && secondsLeft > 0;
-  const isDone = secondsLeft === 0;
+  const accentColor = isOvertime ? '#f06060' : isLow ? '#f0c060' : '#c8f060';
+
+  const progress = isOvertime ? 0 : restDuration > 0 ? secondsLeft / restDuration : 0;
 
   return (
-    <Animated.View style={[styles.container, { transform: [{ scale: pulseAnim }] }]}>
+    <Animated.View
+      style={[
+        styles.container,
+        isOvertime && styles.containerOvertime,
+        { transform: [{ scale: pulseAnim }] },
+      ]}
+    >
       <View style={styles.row}>
-        <Ionicons name="timer" size={18} color={isDone ? '#60f090' : isLow ? '#f0c060' : '#c8f060'} />
-        <Text style={[styles.timeText, isLow && styles.timeLow, isDone && styles.timeDone]}>
-          {isDone ? 'Rest done! 💪' : `${mins}:${String(secs).padStart(2, '0')}`}
-        </Text>
-        {Platform.OS === 'android' && (
-          <TouchableOpacity
-            onPress={() => launchNativeTimer(secondsLeft > 0 ? secondsLeft : restDuration)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={styles.nativeBtn}
-          >
-            <Ionicons name="phone-portrait-outline" size={16} color="#7a7a90" />
+        <Ionicons name="timer" size={18} color={accentColor} />
+        <Text style={[styles.timeText, { color: accentColor }]}>{timeStr}</Text>
+        {isOvertime ? (
+          <TouchableOpacity style={styles.stopBtn} onPress={handleStop}>
+            <Text style={styles.stopBtnText}>Stop</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={handleStop} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close" size={16} color="#7a7a90" />
           </TouchableOpacity>
         )}
-        <TouchableOpacity onPress={clearRestTimer} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="close" size={16} color="#7a7a90" />
-        </TouchableOpacity>
       </View>
 
       {/* Progress bar */}
@@ -86,10 +104,7 @@ export function RestTimer() {
         <View
           style={[
             styles.fill,
-            {
-              width: `${progress * 100}%` as any,
-              backgroundColor: isDone ? '#60f090' : isLow ? '#f0c060' : '#c8f060',
-            },
+            { width: `${progress * 100}%` as any, backgroundColor: accentColor },
           ]}
         />
       </View>
@@ -101,6 +116,10 @@ export function RestTimer() {
             key={d}
             style={styles.quickBtn}
             onPress={() => {
+              Vibration.cancel();
+              pulseLoop.current?.stop();
+              pulseAnim.setValue(1);
+              hasEnteredOvertime.current = false;
               startRestTimer(d);
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
@@ -125,6 +144,10 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 10,
   },
+  containerOvertime: {
+    borderColor: 'rgba(240,96,96,0.4)',
+    backgroundColor: '#1c1414',
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -132,16 +155,20 @@ const styles = StyleSheet.create({
   },
   timeText: {
     flex: 1,
-    color: '#c8f060',
     fontSize: 22,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
-  timeLow: {
-    color: '#f0c060',
+  stopBtn: {
+    backgroundColor: '#f06060',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
   },
-  timeDone: {
-    color: '#60f090',
+  stopBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   track: {
     height: 5,
@@ -168,8 +195,5 @@ const styles = StyleSheet.create({
     color: '#7a7a90',
     fontSize: 12,
     fontWeight: '600',
-  },
-  nativeBtn: {
-    marginRight: 4,
   },
 });

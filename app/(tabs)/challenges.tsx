@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -10,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useChallengeStore } from '@store/challengeStore';
 import { useWorkoutStore } from '@store/workoutStore';
-import { SESSION_CHALLENGES, WEEKLY_CHALLENGES, ACHIEVEMENTS } from '@services/challengeDefinitions';
+import { getDailySessionChallenges, getWeeklyChallenges, ACHIEVEMENTS } from '@services/challengeDefinitions';
 import type { ChallengeDefinition, ChallengeProgress } from '@types/index';
 
 type Tab = 'active' | 'badges';
@@ -95,20 +96,24 @@ function BadgeGrid() {
 export default function ChallengesScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('active');
   const { sessionProgress, weeklyProgress, unlockedAchievements, evaluateAll } = useChallengeStore();
+  const dailyChallenges = getDailySessionChallenges();
+  const weeklyChallenges = getWeeklyChallenges();
 
-  // Re-evaluate weekly + achievement challenges on screen focus
-  useEffect(() => {
-    const state = useWorkoutStore.getState();
-    evaluateAll({
-      sessionSets: [],
-      allSets: state.sets,
-      sessions: state.sessions,
-      exercises: state.exercises,
-      currentSessionId: null,
-      getPersonalRecord: state.getPersonalRecord,
-      getStreakWeeks: state.getStreakWeeks,
-    }).catch(() => {});
-  }, []);
+  // Re-evaluate weekly + achievement challenges every time the tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      const state = useWorkoutStore.getState();
+      evaluateAll({
+        sessionSets: [],
+        allSets: state.sets,
+        sessions: state.sessions,
+        exercises: state.exercises,
+        currentSessionId: null,
+        getPersonalRecord: state.getPersonalRecord,
+        getStreakWeeks: state.getStreakWeeks,
+      }).catch(() => {});
+    }, [evaluateAll])
+  );
 
   const unlockedCount = unlockedAchievements.length;
   const totalBadges = ACHIEVEMENTS.length;
@@ -143,15 +148,15 @@ export default function ChallengesScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {activeTab === 'active' ? (
           <>
-            <Text style={styles.sectionTitle}>Cette séance</Text>
-            <Text style={styles.sectionHint}>Mis à jour en temps réel pendant l'entraînement</Text>
-            {SESSION_CHALLENGES.map((def) => (
+            <Text style={styles.sectionTitle}>Défis du jour</Text>
+            <Text style={styles.sectionHint}>Changent chaque jour — mis à jour en temps réel</Text>
+            {dailyChallenges.map((def) => (
               <ChallengeCard key={def.id} def={def} progress={sessionProgress[def.id]} />
             ))}
 
-            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Cette semaine</Text>
-            <Text style={styles.sectionHint}>Réinitialisé chaque semaine</Text>
-            {WEEKLY_CHALLENGES.map((def) => (
+            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Défis de la semaine</Text>
+            <Text style={styles.sectionHint}>Changent chaque lundi</Text>
+            {weeklyChallenges.map((def) => (
               <ChallengeCard key={def.id} def={def} progress={weeklyProgress[def.id]} />
             ))}
           </>

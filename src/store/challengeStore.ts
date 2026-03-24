@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SESSION_CHALLENGES, WEEKLY_CHALLENGES, ACHIEVEMENTS } from '@services/challengeDefinitions';
+import { getDailySessionChallenges, getWeeklyChallenges, ACHIEVEMENTS } from '@services/challengeDefinitions';
 import type { Achievement, ChallengeProgress, ChallengeEvalData } from '@types/index';
 
 const STORAGE_KEY_ACHIEVEMENTS = 'nokka_achievements';
 const STORAGE_KEY_WEEK = 'nokka_challenge_week';
+const STORAGE_KEY_DAY = 'nokka_challenge_day';
 
 function getISOWeekYear(date: Date): string {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -54,25 +55,38 @@ export const useChallengeStore = create<ChallengeState>((set, get) => ({
       try { await AsyncStorage.setItem(STORAGE_KEY_WEEK, currentWeek); } catch {}
     }
 
-    const newSessionProgress = { ...sessionProgress };
+    // Check if day changed → reset session (daily) progress
+    const today = new Date().toISOString().slice(0, 10);
+    let storedDay: string | null = null;
+    try { storedDay = await AsyncStorage.getItem(STORAGE_KEY_DAY); } catch {}
+    let newSessionProgress = { ...sessionProgress };
+    if (storedDay !== today) {
+      newSessionProgress = {};
+      try { await AsyncStorage.setItem(STORAGE_KEY_DAY, today); } catch {}
+    }
+
     let newUnlocked: Achievement | null = null;
     let newAchievements = [...unlockedAchievements];
 
-    // Evaluate session challenges
-    for (const def of SESSION_CHALLENGES) {
-      const current = def.evaluate(data);
-      const prev = newSessionProgress[def.id];
-      const wasCompleted = prev?.completedAt != null;
-      newSessionProgress[def.id] = {
-        challengeId: def.id,
-        current,
-        target: def.target,
-        completedAt: wasCompleted ? prev.completedAt : (current >= def.target ? new Date().toISOString() : null),
-      };
+    // Only evaluate session challenges when actively inside a session
+    if (data.currentSessionId !== null) {
+      const dailyChallenges = getDailySessionChallenges();
+      for (const def of dailyChallenges) {
+        const current = def.evaluate(data);
+        const prev = newSessionProgress[def.id];
+        const wasCompleted = prev?.completedAt != null;
+        newSessionProgress[def.id] = {
+          challengeId: def.id,
+          current,
+          target: def.target,
+          completedAt: wasCompleted ? prev.completedAt : (current >= def.target ? new Date().toISOString() : null),
+        };
+      }
     }
 
     // Evaluate weekly challenges
-    for (const def of WEEKLY_CHALLENGES) {
+    const weeklyChallenges = getWeeklyChallenges();
+    for (const def of weeklyChallenges) {
       const current = def.evaluate(data);
       const prev = newWeeklyProgress[def.id];
       const wasCompleted = prev?.completedAt != null;

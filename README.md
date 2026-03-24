@@ -31,6 +31,7 @@ Application mobile React Native (Expo) combinant suivi d'entraînement, nutritio
 - Grille de raccourcis vers toutes les fonctions majeures
 - Accès rapide au classement
 - Pull-to-refresh
+- **Rappel créatine** : notification toutes les heures tant que non prise, bouton "Pris ✓" pour confirmer, reset quotidien automatique
 
 ---
 
@@ -62,9 +63,10 @@ Application mobile React Native (Expo) combinant suivi d'entraînement, nutritio
 
 #### Timer de repos
 - Compte à rebours configurable entre les séries
-- Option de démarrage automatique
-- Notifications de fin de repos
-- Timer toujours visible pendant la session
+- Foreground service Android (`react-native-background-actions`) : décompte live en notification même en background
+- Mode overtime : timer négatif rouge (+MM:SS) avec vibration continue à la fin du repos
+- Arrêt uniquement par bouton Stop (pas d'auto-dismiss)
+- Barre de progression dans la notification
 
 #### Templates
 - Création de sessions depuis des routines passées

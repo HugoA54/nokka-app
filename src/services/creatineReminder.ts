@@ -1,11 +1,14 @@
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import Constants from 'expo-constants';
 
 const CHANNEL_ID = 'creatine_reminder';
 const STORAGE_KEY_PREFIX = 'nokka_creatine_';
-const NOTIF_ID = 'creatine-hourly';
+const NOTIF_PREFIX = 'creatine-h-';
+
+// Hours at which to send reminders (8h → 22h, every hour)
+const REMINDER_HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
@@ -43,38 +46,45 @@ export async function markCreatineTaken(): Promise<void> {
 export async function scheduleCreatineReminders(): Promise<void> {
   if (isExpoGo) return;
 
-  // Don't schedule if already taken today
   const taken = await hasCreatineToday();
   if (taken) return;
 
-  // Cancel existing before rescheduling
   await cancelCreatineReminders();
 
-  // Schedule a repeating notification every hour
-  await Notifications.scheduleNotificationAsync({
-    identifier: NOTIF_ID,
-    content: {
-      title: '💊 Créatine !',
-      body: "Tu n'as pas encore pris ta créatine aujourd'hui !",
-      sound: 'default',
-      ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: 3600,
-      repeats: true,
-    },
-  });
+  const now = new Date();
+  const currentHour = now.getHours();
+
+  for (const hour of REMINDER_HOURS) {
+    // Skip hours that have already passed today
+    if (hour <= currentHour) continue;
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: `${NOTIF_PREFIX}${hour}`,
+      content: {
+        title: '💊 Créatine !',
+        body: "Tu n'as pas encore pris ta créatine aujourd'hui !",
+        sound: 'default',
+        ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute: 0,
+      },
+    });
+  }
 }
 
 export async function cancelCreatineReminders(): Promise<void> {
   if (isExpoGo) return;
-  try {
-    await Notifications.cancelScheduledNotificationAsync(NOTIF_ID);
-  } catch {}
+  for (const hour of REMINDER_HOURS) {
+    try {
+      await Notifications.cancelScheduledNotificationAsync(`${NOTIF_PREFIX}${hour}`);
+    } catch {}
+  }
 }
 
-/** Call on app start to check daily reset and reschedule if needed */
+/** Call on app start + app resume to check daily reset and reschedule */
 export async function initCreatineReminder(): Promise<void> {
   await setupCreatineChannel();
   const taken = await hasCreatineToday();
@@ -83,4 +93,14 @@ export async function initCreatineReminder(): Promise<void> {
   } else {
     await scheduleCreatineReminders();
   }
+}
+
+/** Listen for app becoming active to reschedule (handles new day while app was in background) */
+export function startCreatineAppStateListener(): () => void {
+  const sub = AppState.addEventListener('change', (state) => {
+    if (state === 'active') {
+      initCreatineReminder();
+    }
+  });
+  return () => sub.remove();
 }

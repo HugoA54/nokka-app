@@ -74,6 +74,7 @@ export default function SessionDetailScreen() {
   const [isLoadingRecs, setIsLoadingRecs] = useState(false);
   const [showRecs, setShowRecs] = useState(true);
   const [aiEnabled, setAiEnabled] = useState(false);
+  const aiEnabledRef = useRef(false);
   const hasLoadedRecs = useRef(false);
   const noteSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -106,6 +107,7 @@ export default function SessionDetailScreen() {
     // Check AI status + load cached analysis
     const enabled = await geminiService.isEnabled();
     setAiEnabled(enabled);
+    aiEnabledRef.current = enabled;
     if (id) {
       const cached = await AsyncStorage.getItem(`ai_analysis_${id}`);
       if (cached) setAiAnalysis(cached);
@@ -121,7 +123,7 @@ export default function SessionDetailScreen() {
   }, [loadData, session?.name]);
 
   const generateRecommendations = useCallback(async (currentSections: typeof sections) => {
-    if (hasLoadedRecs.current || currentSections.length === 0 || !id || !aiEnabled) return;
+    if (hasLoadedRecs.current || currentSections.length === 0 || !id || !aiEnabledRef.current) return;
     hasLoadedRecs.current = true;
 
     const cacheKey = `recs_${id}`;
@@ -161,10 +163,10 @@ export default function SessionDetailScreen() {
   }, [id, getLastSessionSetsForExercise]);
 
   useEffect(() => {
-    if (sections.length > 0 && !hasLoadedRecs.current) {
+    if (sections.length > 0 && !hasLoadedRecs.current && aiEnabled) {
       generateRecommendations(sections);
     }
-  }, [sections.length]);
+  }, [sections.length, aiEnabled]);
 
 
   const triggerChallengeEval = useCallback(() => {

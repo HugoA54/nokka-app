@@ -73,6 +73,7 @@ export default function SessionDetailScreen() {
   const [aiRecommendations, setAiRecommendations] = useState<ProgressionRecommendation[]>([]);
   const [isLoadingRecs, setIsLoadingRecs] = useState(false);
   const [showRecs, setShowRecs] = useState(true);
+  const [aiEnabled, setAiEnabled] = useState(false);
   const hasLoadedRecs = useRef(false);
   const noteSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -102,6 +103,13 @@ export default function SessionDetailScreen() {
       await loadSets(id);
       if (exercises.length === 0) await loadExercises();
     }
+    // Check AI status + load cached analysis
+    const enabled = await geminiService.isEnabled();
+    setAiEnabled(enabled);
+    if (id) {
+      const cached = await AsyncStorage.getItem(`ai_analysis_${id}`);
+      if (cached) setAiAnalysis(cached);
+    }
   }, [id]);
 
   useEffect(() => {
@@ -113,7 +121,7 @@ export default function SessionDetailScreen() {
   }, [loadData, session?.name]);
 
   const generateRecommendations = useCallback(async (currentSections: typeof sections) => {
-    if (hasLoadedRecs.current || currentSections.length === 0 || !id) return;
+    if (hasLoadedRecs.current || currentSections.length === 0 || !id || !aiEnabled) return;
     hasLoadedRecs.current = true;
 
     const cacheKey = `recs_${id}`;
@@ -296,6 +304,7 @@ Sois direct et motivant, comme un vrai coach.`;
     try {
       const result = await geminiService.analyzeWorkoutSession(prompt);
       setAiAnalysis(result);
+      await AsyncStorage.setItem(`ai_analysis_${id}`, result);
     } catch {
       setAiAnalysis('Impossible d\'analyser la séance pour le moment. Vérifie ta connexion et réessaie.');
     } finally {
@@ -461,7 +470,7 @@ Sois direct et motivant, comme un vrai coach.`;
             />
 
             {/* AI Progressive Overload Recommendations */}
-            {(isLoadingRecs || (aiRecommendations.length > 0 && showRecs)) && (
+            {aiEnabled && (isLoadingRecs || (aiRecommendations.length > 0 && showRecs)) && (
               <View style={styles.recsCard}>
                 <View style={styles.recsHeader}>
                   <Ionicons name="sparkles" size={14} color="#c8f060" />
@@ -512,10 +521,33 @@ Sois direct et motivant, comme un vrai coach.`;
         }
         ListFooterComponent={
           sessionSets.filter((s) => s.weight > 0 || s.repetitions > 0).length > 0 ? (
-            <TouchableOpacity style={styles.aiBtn} onPress={handleAnalyzeSession}>
-              <Ionicons name="sparkles" size={16} color="#0f0f12" />
-              <Text style={styles.aiBtnText}>Analyser la séance avec l'IA</Text>
-            </TouchableOpacity>
+            <View style={styles.footerContainer}>
+              {/* Saved AI analysis inline */}
+              {aiAnalysis && !isAnalyzing && (
+                <View style={styles.aiSavedCard}>
+                  <View style={styles.aiSavedHeader}>
+                    <Ionicons name="sparkles" size={14} color="#c8f060" />
+                    <Text style={styles.aiSavedTitle}>Analyse IA</Text>
+                    {aiEnabled && (
+                      <TouchableOpacity
+                        style={styles.aiRefreshBtn}
+                        onPress={handleAnalyzeSession}
+                      >
+                        <Ionicons name="refresh" size={13} color="#7a7a90" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <Text style={styles.aiSavedText}>{aiAnalysis}</Text>
+                </View>
+              )}
+              {/* AI button — only if enabled */}
+              {aiEnabled && !aiAnalysis && (
+                <TouchableOpacity style={styles.aiBtn} onPress={handleAnalyzeSession}>
+                  <Ionicons name="sparkles" size={16} color="#0f0f12" />
+                  <Text style={styles.aiBtnText}>Analyser la séance avec l'IA</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           ) : null
         }
         contentContainerStyle={styles.list}
@@ -683,19 +715,20 @@ Sois direct et motivant, comme un vrai coach.`;
         visible={showAIAnalysis}
         onClose={() => setShowAIAnalysis(false)}
         title="Analyse IA de la séance"
+        scrollable
       >
         <View style={styles.aiModalContent}>
           {isAnalyzing ? (
             <View style={styles.aiLoading}>
               <Ionicons name="sparkles" size={32} color="#c8f060" />
               <Text style={styles.aiLoadingText}>Analyse en cours…</Text>
-              <Text style={styles.aiLoadingSubtext}>Gemini compare ta séance avec la précédente</Text>
+              <Text style={styles.aiLoadingSubtext}>L'IA compare ta séance avec la précédente</Text>
             </View>
           ) : (
             <>
               <View style={styles.aiHeader}>
                 <Ionicons name="sparkles" size={16} color="#c8f060" />
-                <Text style={styles.aiHeaderText}>Généré par Gemini AI</Text>
+                <Text style={styles.aiHeaderText}>Analyse IA</Text>
               </View>
               <Text style={styles.aiText}>{aiAnalysis}</Text>
               <TouchableOpacity style={styles.aiRetryBtn} onPress={handleAnalyzeSession}>
@@ -854,10 +887,24 @@ const styles = StyleSheet.create({
   lastSessionReps: { color: '#f0f0f0', fontSize: 14, fontWeight: '600', flex: 1 },
   lastSessionRpe: { color: '#7a7a90', fontSize: 11 },
   lastSessionNote: { color: '#5a5a70', fontSize: 11, fontStyle: 'italic', paddingLeft: 22 },
+  footerContainer: { gap: 12, marginTop: 8, marginBottom: 8 },
+  aiSavedCard: {
+    backgroundColor: '#0f1a08', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: 'rgba(200,240,96,0.2)', gap: 10,
+  },
+  aiSavedHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(200,240,96,0.1)',
+  },
+  aiSavedTitle: { color: '#c8f060', fontSize: 13, fontWeight: '700', flex: 1 },
+  aiRefreshBtn: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: 'rgba(200,240,96,0.1)', alignItems: 'center', justifyContent: 'center',
+  },
+  aiSavedText: { color: '#e0e0e0', fontSize: 14, lineHeight: 22 },
   aiBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, backgroundColor: '#c8f060', borderRadius: 14, paddingVertical: 14,
-    marginTop: 16, marginBottom: 8,
   },
   aiBtnText: { color: '#0f0f12', fontSize: 15, fontWeight: '700' },
   aiModalContent: { gap: 16, minHeight: 120 },

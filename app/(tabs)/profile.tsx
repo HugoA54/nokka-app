@@ -15,6 +15,7 @@ import { useWorkoutStore } from '@store/workoutStore';
 import { useToast } from '@hooks/useToast';
 import { useHaptics } from '@hooks/useHaptics';
 import { calculateDailyMetrics } from '@services/calorieCalculations';
+import { geminiService } from '@services/geminiService';
 import type { ActivityLevel, FitnessGoal, Gender, UserProfile } from '@types/index';
 
 const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string; description: string }[] = [
@@ -48,10 +49,18 @@ export default function ProfileScreen() {
   const [useAutoCalc, setUseAutoCalc] = useState(true);
   const [manualGoal, setManualGoal] = useState('2000');
   const [isSaving, setIsSaving] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiApiKey, setAiApiKey] = useState('');
+  const [aiKeyVisible, setAiKeyVisible] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!user) return;
     await loadUserProfile(user.id);
+    // Load AI settings
+    const enabled = await geminiService.isEnabled();
+    const key = await geminiService.getApiKey();
+    setAiEnabled(enabled);
+    setAiApiKey(key);
   }, [user?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -92,6 +101,18 @@ export default function ProfileScreen() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleToggleAI = async (enabled: boolean) => {
+    setAiEnabled(enabled);
+    await geminiService.setEnabled(enabled);
+    await haptics.light();
+  };
+
+  const handleSaveApiKey = async () => {
+    await geminiService.setApiKey(aiApiKey);
+    await haptics.success();
+    toast.success('Clé API sauvegardée !');
   };
 
   const handleSignOut = () => {
@@ -300,6 +321,56 @@ export default function ProfileScreen() {
         )}
       </View>
 
+      {/* AI Features */}
+      <View style={styles.card}>
+        <View style={styles.calcRow}>
+          <View style={styles.calcInfo}>
+            <Text style={styles.calcTitle}>Fonctionnalités IA</Text>
+            <Text style={styles.calcDesc}>Analyse repas, surcharge progressive, analyse de séance</Text>
+          </View>
+          <Switch
+            value={aiEnabled}
+            onValueChange={handleToggleAI}
+            trackColor={{ false: '#2a2a35', true: '#c8f060' }}
+            thumbColor={aiEnabled ? '#0f0f12' : '#7a7a90'}
+          />
+        </View>
+        {aiEnabled && (
+          <View style={styles.aiKeySection}>
+            <Text style={styles.fieldLabel}>Clé API Gemini</Text>
+            <Text style={styles.aiKeyHint}>
+              Obtiens ta clé gratuite sur Google AI Studio → Get API Key
+            </Text>
+            <View style={styles.aiKeyRow}>
+              <TextInput
+                style={styles.aiKeyInput}
+                value={aiApiKey}
+                onChangeText={setAiApiKey}
+                placeholder="AIzaSy..."
+                placeholderTextColor="#3a3a4a"
+                secureTextEntry={!aiKeyVisible}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={styles.aiKeyToggle}
+                onPress={() => setAiKeyVisible(!aiKeyVisible)}
+              >
+                <Ionicons
+                  name={aiKeyVisible ? 'eye-off-outline' : 'eye-outline'}
+                  size={18}
+                  color="#7a7a90"
+                />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.aiKeySaveBtn} onPress={handleSaveApiKey}>
+              <Ionicons name="checkmark-circle-outline" size={16} color="#0f0f12" />
+              <Text style={styles.aiKeySaveBtnText}>Sauvegarder la clé</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
       {/* Save Button */}
       {editing && (
         <TouchableOpacity
@@ -415,6 +486,23 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { color: '#0f0f12', fontSize: 17, fontWeight: '700' },
+  aiKeySection: { gap: 10 },
+  aiKeyHint: { color: '#7a7a90', fontSize: 11, fontStyle: 'italic' },
+  aiKeyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  aiKeyInput: {
+    flex: 1, backgroundColor: '#0f0f12', borderRadius: 10, borderWidth: 1,
+    borderColor: '#2a2a35', paddingHorizontal: 12, paddingVertical: 10,
+    color: '#f0f0f0', fontSize: 14, fontFamily: 'monospace',
+  },
+  aiKeyToggle: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: '#2a2a35', alignItems: 'center', justifyContent: 'center',
+  },
+  aiKeySaveBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: '#c8f060', borderRadius: 10, paddingVertical: 10,
+  },
+  aiKeySaveBtnText: { color: '#0f0f12', fontSize: 14, fontWeight: '700' },
   signOutBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: 'rgba(240,96,96,0.1)', borderRadius: 12,

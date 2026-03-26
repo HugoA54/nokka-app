@@ -1,8 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AIMacroResult, ProgressionRecommendation } from "@types/index";
 
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY!;
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+
+const STORAGE_KEY_AI_ENABLED = 'nokka_ai_enabled';
+const STORAGE_KEY_API_KEY = 'nokka_gemini_api_key';
 
 type MimeType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
@@ -46,21 +49,45 @@ Rules:
 - If you cannot identify the food, make your best educated guess`;
 
 class GeminiService {
-  private apiKey: string;
+  /** Check if AI features are enabled */
+  async isEnabled(): Promise<boolean> {
+    const val = await AsyncStorage.getItem(STORAGE_KEY_AI_ENABLED);
+    return val === 'true';
+  }
 
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
+  /** Toggle AI features on/off */
+  async setEnabled(enabled: boolean): Promise<void> {
+    await AsyncStorage.setItem(STORAGE_KEY_AI_ENABLED, String(enabled));
+  }
+
+  /** Get the stored API key */
+  async getApiKey(): Promise<string> {
+    return (await AsyncStorage.getItem(STORAGE_KEY_API_KEY)) ?? '';
+  }
+
+  /** Save the API key */
+  async setApiKey(key: string): Promise<void> {
+    await AsyncStorage.setItem(STORAGE_KEY_API_KEY, key.trim());
+  }
+
+  /** Resolve the current key — throws if AI is disabled or key is missing */
+  private async resolveKey(): Promise<string> {
+    const enabled = await this.isEnabled();
+    if (!enabled) {
+      throw new Error('Les fonctionnalités IA sont désactivées. Active-les dans Profil → IA.');
+    }
+    const key = await this.getApiKey();
+    if (!key) {
+      throw new Error('Clé API Gemini manquante. Ajoute-la dans Profil → IA.');
+    }
+    return key;
   }
 
   async analyzeMealImage(
     imageBase64: string,
     notes?: string,
   ): Promise<AIMacroResult> {
-    if (!this.apiKey) {
-      throw new Error(
-        "Gemini API key is not configured. Set EXPO_PUBLIC_GEMINI_API_KEY in your .env file.",
-      );
-    }
+    const apiKey = await this.resolveKey();
 
     const cleanBase64 = stripBase64Header(imageBase64);
     const mimeType = detectMimeType(cleanBase64);
@@ -73,26 +100,15 @@ class GeminiService {
       contents: [
         {
           parts: [
-            {
-              inlineData: {
-                mimeType,
-                data: cleanBase64,
-              },
-            },
-            {
-              text: prompt,
-            },
+            { inlineData: { mimeType, data: cleanBase64 } },
+            { text: prompt },
           ],
         },
       ],
-      generationConfig: {
-        temperature: 0.3,
-        topK: 32,
-        topP: 1,
-      },
+      generationConfig: { temperature: 0.3, topK: 32, topP: 1 },
     };
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${this.apiKey}`, {
+    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -101,13 +117,10 @@ class GeminiService {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("[geminiService] API error:", errorText);
-      throw new Error(
-        `Gemini API error ${response.status}: ${response.statusText}`,
-      );
+      throw new Error(`Gemini API error ${response.status}: ${response.statusText}`);
     }
 
     const json = await response.json();
-
     const text: string | undefined =
       json?.candidates?.[0]?.content?.parts?.[0]?.text;
 
@@ -115,7 +128,6 @@ class GeminiService {
       throw new Error("Gemini returned an empty response. Please try again.");
     }
 
-    // Strip markdown code fences if present
     const cleaned = text
       .replace(/```json\s*/gi, "")
       .replace(/```\s*/g, "")
@@ -125,12 +137,9 @@ class GeminiService {
     try {
       parsed = JSON.parse(cleaned);
     } catch {
-      throw new Error(
-        `Could not parse Gemini response as JSON. Raw: ${cleaned}`,
-      );
+      throw new Error(`Could not parse Gemini response as JSON. Raw: ${cleaned}`);
     }
 
-    // Validate and sanitize
     const result: AIMacroResult = {
       name: String(parsed.name ?? "Unknown meal"),
       calories: Math.round(Number(parsed.calories) || 0),
@@ -140,16 +149,14 @@ class GeminiService {
     };
 
     if (result.calories <= 0) {
-      throw new Error(
-        "AI returned zero calories. The image may not show food clearly.",
-      );
+      throw new Error("AI returned zero calories. The image may not show food clearly.");
     }
 
     return result;
   }
 
   async analyzeProgressiveOverload(exercisesData: string): Promise<ProgressionRecommendation[]> {
-    if (!this.apiKey) throw new Error('Gemini API key not configured.');
+    const apiKey = await this.resolveKey();
 
     const prompt = `Tu es un coach expert en musculation. Analyse les performances récentes ci-dessous et génère des recommandations de surcharge progressive pour la prochaine séance.
 
@@ -179,7 +186,7 @@ ${exercisesData}`;
       generationConfig: { temperature: 0.3, topK: 32, topP: 1 },
     };
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${this.apiKey}`, {
+    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -197,14 +204,14 @@ ${exercisesData}`;
   }
 
   async analyzeWorkoutSession(prompt: string): Promise<string> {
-    if (!this.apiKey) throw new Error('Gemini API key not configured.');
+    const apiKey = await this.resolveKey();
 
     const body = {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: { temperature: 0.7, topK: 32, topP: 1 },
     };
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${this.apiKey}`, {
+    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -219,4 +226,4 @@ ${exercisesData}`;
   }
 }
 
-export const geminiService = new GeminiService(GEMINI_API_KEY ?? "");
+export const geminiService = new GeminiService();

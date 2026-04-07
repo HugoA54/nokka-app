@@ -74,24 +74,20 @@ export async function hasCreatineToday(): Promise<boolean> {
 
 export async function markCreatineTaken(): Promise<void> {
   await AsyncStorage.setItem(todayKey(), 'true');
-  await cancelCreatineReminders();
+  // Cancel current DAILY triggers then immediately reschedule them so they
+  // come back tomorrow — without this they'd be gone permanently.
+  await scheduleCreatineReminders();
 }
 
 export async function scheduleCreatineReminders(): Promise<void> {
   if (isExpoGo) return;
-
-  const taken = await hasCreatineToday();
-  if (taken) return;
 
   const settings = await getCreatineSettings();
   if (!settings.enabled) return;
 
   await cancelCreatineReminders();
 
-  const now = new Date();
-  const currentHour = now.getHours();
-
-  // Build list of hours to notify today
+  // Build list of hours to notify
   const hours: number[] = [];
   if (settings.mode === 'fixed') {
     hours.push(settings.fixedHour);
@@ -102,14 +98,8 @@ export async function scheduleCreatineReminders(): Promise<void> {
     }
   }
 
+  // Use DAILY repeating triggers — fire every day at each hour regardless of app launch
   for (const hour of hours) {
-    // Skip past hours
-    if (hour <= currentHour) continue;
-
-    // One-shot trigger for today only (no repeating DAILY)
-    const target = new Date();
-    target.setHours(hour, 0, 0, 0);
-
     await Notifications.scheduleNotificationAsync({
       identifier: `${NOTIF_PREFIX}${hour}`,
       content: {
@@ -119,8 +109,9 @@ export async function scheduleCreatineReminders(): Promise<void> {
         ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: target,
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute: 0,
       },
     });
   }
@@ -135,7 +126,7 @@ export async function cancelCreatineReminders(): Promise<void> {
   }
 }
 
-/** Call on app start + app resume to check daily reset and reschedule */
+/** Call on app start + settings change to ensure DAILY triggers are active */
 export async function initCreatineReminder(): Promise<void> {
   await setupCreatineChannel();
   const settings = await getCreatineSettings();
@@ -143,12 +134,10 @@ export async function initCreatineReminder(): Promise<void> {
     await cancelCreatineReminders();
     return;
   }
-  const taken = await hasCreatineToday();
-  if (taken) {
-    await cancelCreatineReminders();
-  } else {
-    await scheduleCreatineReminders();
-  }
+  // Always (re)schedule DAILY triggers — they survive without app launch.
+  // If already taken today the UI hides the card; notifications may still
+  // appear today but will be ignored by the user (acceptable trade-off).
+  await scheduleCreatineReminders();
 }
 
 /** Listen for app becoming active to reschedule (handles new day) */

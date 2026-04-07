@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@services/supabase';
 import { useAuthStore } from '@store/authStore';
 import type { LeaderboardEntry } from '@types/index';
@@ -31,9 +32,11 @@ function RankBadge({ rank }: { rank: number }) {
 }
 
 export default function LeaderboardScreen() {
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [myEntry, setMyEntry] = useState<LeaderboardEntry | null>(null);
 
@@ -77,6 +80,7 @@ export default function LeaderboardScreen() {
       setMyEntry(me);
     } catch (error) {
       console.error('[leaderboard] load:', error);
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -86,6 +90,7 @@ export default function LeaderboardScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    setLoadError(false);
     await loadLeaderboard();
     setRefreshing(false);
   };
@@ -106,18 +111,18 @@ export default function LeaderboardScreen() {
           <View style={styles.myLeft}>
             <RankBadge rank={myEntry.rank} />
             <View>
-              <Text style={styles.myLabel}>Your rank</Text>
+              <Text style={styles.myLabel}>{t('leaderboard.your_rank')}</Text>
               <Text style={styles.myRank}>#{myEntry.rank}</Text>
             </View>
           </View>
           <View style={styles.myStats}>
             <View style={styles.myStat}>
               <Text style={styles.myStatValue}>{(myEntry.total_volume / 1000).toFixed(1)}t</Text>
-              <Text style={styles.myStatLabel}>Volume</Text>
+              <Text style={styles.myStatLabel}>{t('leaderboard.volume_label')}</Text>
             </View>
             <View style={styles.myStat}>
               <Text style={styles.myStatValue}>{myEntry.total_sessions}</Text>
-              <Text style={styles.myStatLabel}>Sessions</Text>
+              <Text style={styles.myStatLabel}>{t('leaderboard.sessions_label')}</Text>
             </View>
           </View>
         </LinearGradient>
@@ -139,24 +144,24 @@ export default function LeaderboardScreen() {
               </View>
               <View style={styles.entryInfo}>
                 <Text style={[styles.entryName, isMe && styles.entryNameMe]}>
-                  {isMe ? 'You' : item.username}
+                  {isMe ? t('leaderboard.you') : item.username}
                 </Text>
-                <Text style={styles.entrySessions}>{item.total_sessions} sessions</Text>
+                <Text style={styles.entrySessions}>{item.total_sessions} {t('leaderboard.sessions_count')}</Text>
               </View>
               <View style={styles.entryVolume}>
                 <Text style={styles.entryVolumeValue}>
                   {(item.total_volume / 1000).toFixed(1)}t
                 </Text>
-                <Text style={styles.entryVolumeLabel}>volume</Text>
+                <Text style={styles.entryVolumeLabel}>{t('leaderboard.volume_label_short')}</Text>
               </View>
             </View>
           );
         }}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="trophy-outline" size={52} color="#2a2a35" />
-            <Text style={styles.emptyTitle}>No data yet</Text>
-            <Text style={styles.emptyText}>Start logging workouts to appear on the leaderboard!</Text>
+            <Ionicons name={loadError ? 'cloud-offline-outline' : 'trophy-outline'} size={52} color="#2a2a35" />
+            <Text style={styles.emptyTitle}>{loadError ? t('common.error') : t('leaderboard.no_data')}</Text>
+            <Text style={styles.emptyText}>{loadError ? t('leaderboard.load_error') : t('leaderboard.start_logging')}</Text>
           </View>
         }
         contentContainerStyle={styles.list}

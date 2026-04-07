@@ -1,5 +1,6 @@
 import '../global.css';
-import { useEffect } from 'react';
+import '../src/i18n';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -18,6 +19,8 @@ import { initCreatineReminder, startCreatineAppStateListener } from '@services/c
 import { useNetworkSync } from '@hooks/useNetworkSync';
 import { registerWidgetTaskHandler } from 'react-native-android-widget';
 import { widgetTaskHandler } from '@widgets/widgetTaskHandler';
+import { getStoredLanguage } from '../src/i18n';
+import i18n from '../src/i18n';
 
 registerWidgetTaskHandler(widgetTaskHandler);
 
@@ -43,9 +46,13 @@ const queryClient = new QueryClient({
 export default function RootLayout() {
   const { initialize, isInitialized } = useAuthStore();
   const loadAchievements = useChallengeStore((s) => s.loadAchievements);
+  const [i18nReady, setI18nReady] = useState(false);
   useNetworkSync();
 
   useEffect(() => {
+    getStoredLanguage().then((lang) => {
+      i18n.changeLanguage(lang).finally(() => setI18nReady(true));
+    });
     initialize().finally(() => SplashScreen.hideAsync());
     loadAchievements();
 
@@ -67,7 +74,7 @@ export default function RootLayout() {
     return () => { sub.remove(); creatineSub(); };
   }, []);
 
-  if (!isInitialized) return null;
+  if (!isInitialized || !i18nReady) return null;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -86,27 +93,27 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
             name="session/[id]"
-            options={{ title: 'Session', headerBackTitle: 'Back' }}
+            options={{ title: i18n.t('session.title'), headerBackTitle: 'Back' }}
           />
           <Stack.Screen
             name="exercise/[id]"
-            options={{ title: 'Exercise', headerBackTitle: 'Back' }}
+            options={{ title: i18n.t('exercise.title'), headerBackTitle: 'Back' }}
           />
           <Stack.Screen
             name="meal/editor"
-            options={{ title: 'Meal Editor', headerBackTitle: 'Back' }}
+            options={{ title: i18n.t('meal_editor.title'), headerBackTitle: 'Back' }}
           />
           <Stack.Screen
             name="meal/prep"
-            options={{ title: 'Meal Planning', headerBackTitle: 'Back' }}
+            options={{ title: i18n.t('meal_prep.title'), headerBackTitle: 'Back' }}
           />
           <Stack.Screen
             name="leaderboard"
-            options={{ title: 'Leaderboard', headerBackTitle: 'Back' }}
+            options={{ title: i18n.t('leaderboard.title'), headerBackTitle: 'Back' }}
           />
           <Stack.Screen
             name="shopping-list"
-            options={{ title: 'Shopping List', headerBackTitle: 'Back' }}
+            options={{ title: i18n.t('shopping_list.title'), headerBackTitle: 'Back' }}
           />
         </Stack>
         <ToastContainer />

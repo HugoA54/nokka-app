@@ -8,6 +8,7 @@ import {
   FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@store/authStore';
 import { useNutritionStore } from '@store/nutritionStore';
 import { Modal } from '@components/ui/Modal';
@@ -16,11 +17,11 @@ import { useToast } from '@hooks/useToast';
 import { useHaptics } from '@hooks/useHaptics';
 import type { MealTime, MealPlan } from '@types/index';
 
-const MEAL_TIMES: { value: MealTime; label: string; icon: string }[] = [
-  { value: 'breakfast', label: 'Breakfast', icon: 'sunny-outline' },
-  { value: 'lunch', label: 'Lunch', icon: 'partly-sunny-outline' },
-  { value: 'dinner', label: 'Dinner', icon: 'moon-outline' },
-  { value: 'snack', label: 'Snack', icon: 'cafe-outline' },
+const MEAL_TIMES_CONFIG: { value: MealTime; labelKey: string; icon: string }[] = [
+  { value: 'breakfast', labelKey: 'meal_prep.breakfast', icon: 'sunny-outline' },
+  { value: 'lunch', labelKey: 'meal_prep.lunch', icon: 'partly-sunny-outline' },
+  { value: 'dinner', labelKey: 'meal_prep.dinner', icon: 'moon-outline' },
+  { value: 'snack', labelKey: 'meal_prep.snack', icon: 'cafe-outline' },
 ];
 
 function getNext14Days(): string[] {
@@ -32,6 +33,9 @@ function getNext14Days(): string[] {
 }
 
 export default function MealPrepScreen() {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'fr' ? 'fr-FR' : 'en-US';
+  const MEAL_TIMES = MEAL_TIMES_CONFIG.map((mt) => ({ ...mt, label: t(mt.labelKey as any) }));
   const user = useAuthStore((s) => s.user);
   const {
     meals,
@@ -64,7 +68,7 @@ export default function MealPrepScreen() {
     await assignMealToPlan(user.id, selectedDate, selectedMealTime, mealId);
     setShowMealPicker(false);
     await haptics.success();
-    toast.success('Meal planned!');
+    toast.success(t('meal_prep.meal_planned'));
   };
 
   const handleGenerateShopping = async () => {
@@ -74,9 +78,9 @@ export default function MealPrepScreen() {
       const dates = getNext14Days();
       await generateShoppingList(user.id, dates[0], dates[dates.length - 1]);
       await haptics.success();
-      toast.success('Shopping list generated!');
+      toast.success(t('meal_prep.list_generated'));
     } catch {
-      toast.error('Failed to generate shopping list.');
+      toast.error(t('meal_prep.failed_generate'));
     } finally {
       setGeneratingList(false);
     }
@@ -105,7 +109,7 @@ export default function MealPrepScreen() {
               onPress={() => setSelectedDate(date)}
             >
               <Text style={[styles.dayName, isSelected && styles.dayNameActive]}>
-                {isToday ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' })}
+                {isToday ? t('meal_prep.today_label') : d.toLocaleDateString(dateLocale, { weekday: 'short' })}
               </Text>
               <Text style={[styles.dayNum, isSelected && styles.dayNumActive]}>
                 {d.getDate()}
@@ -120,7 +124,7 @@ export default function MealPrepScreen() {
       <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
         <View style={styles.dateHeader}>
           <Text style={styles.dateTitle}>
-            {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            {new Date(selectedDate).toLocaleDateString(dateLocale, { weekday: 'long', month: 'long', day: 'numeric' })}
           </Text>
         </View>
 
@@ -150,7 +154,7 @@ export default function MealPrepScreen() {
                     setShowMealPicker(true);
                   }}
                 >
-                  <Text style={styles.emptySlotText}>+ Add {mt.label.toLowerCase()}</Text>
+                  <Text style={styles.emptySlotText}>+ {mt.value === 'breakfast' ? t('meal_prep.add_breakfast') : mt.value === 'lunch' ? t('meal_prep.add_lunch') : mt.value === 'dinner' ? t('meal_prep.add_dinner') : t('meal_prep.add_snack')}</Text>
                 </TouchableOpacity>
               ) : (
                 plansForTime.map((plan) => (
@@ -159,7 +163,7 @@ export default function MealPrepScreen() {
                       {plan.is_completed && (
                         <View style={styles.completedBadge}>
                           <Ionicons name="checkmark-circle" size={14} color="#60f090" />
-                          <Text style={styles.completedText}>Done</Text>
+                          <Text style={styles.completedText}>{t('meal_prep.done')}</Text>
                         </View>
                       )}
                       <Text style={styles.planMealName}>{plan.meal?.name ?? 'Meal'}</Text>
@@ -203,16 +207,16 @@ export default function MealPrepScreen() {
         >
           <Ionicons name="cart-outline" size={20} color="#0f0f12" />
           <Text style={styles.shoppingBtnText}>
-            {generatingList ? 'Generating…' : 'Generate Shopping List (14 days)'}
+            {generatingList ? t('meal_prep.generating') : t('meal_prep.generate_shopping_list')}
           </Text>
         </TouchableOpacity>
       </ScrollView>
 
       {/* Meal Picker Modal */}
-      <Modal visible={showMealPicker} onClose={() => setShowMealPicker(false)} title={`Choose ${selectedMealTime.charAt(0).toUpperCase() + selectedMealTime.slice(1)}`} fullHeight scrollable>
+      <Modal visible={showMealPicker} onClose={() => setShowMealPicker(false)} title={t('meal_prep.choose_slot', { slot: MEAL_TIMES.find((mt) => mt.value === selectedMealTime)?.label ?? selectedMealTime })} fullHeight scrollable>
         {meals.length === 0 ? (
           <View style={styles.noMeals}>
-            <Text style={styles.noMealsText}>No meals created yet. Create meals in the Nutrition tab first.</Text>
+            <Text style={styles.noMealsText}>{t('meal_prep.no_meals_created')}</Text>
           </View>
         ) : (
           meals.map((meal) => (

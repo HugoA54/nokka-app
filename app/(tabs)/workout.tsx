@@ -11,6 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@store/authStore';
@@ -43,6 +44,8 @@ export default function WorkoutScreen() {
   const { evaluateAll } = useChallengeStore();
   const haptics = useHaptics();
   const toast = useToast();
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'fr' ? 'fr-FR' : 'en-US';
   const [refreshing, setRefreshing] = useState(false);
   const [showNewSession, setShowNewSession] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
@@ -65,7 +68,7 @@ export default function WorkoutScreen() {
 
   const handleCreateSession = async (templateName?: string) => {
     if (!user) return;
-    const name = templateName ?? (newSessionName.trim() || `Workout ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`);
+    const name = templateName ?? (newSessionName.trim() || `Workout ${new Date().toLocaleDateString(dateLocale, { weekday: 'short', month: 'short', day: 'numeric' })}`);
     try {
       const session = templateName
         ? await createSessionFromTemplate(user.id, name)
@@ -87,7 +90,7 @@ export default function WorkoutScreen() {
       }).catch(() => {});
       router.push(`/session/${session.id}`);
     } catch {
-      toast.error('Failed to create session.');
+      toast.error(t('workout.failed_create'));
     }
   };
 
@@ -97,14 +100,14 @@ export default function WorkoutScreen() {
   ).values()].slice(0, 10);
 
   const handleDeleteSession = (session: Session) => {
-    Alert.alert('Delete Session', `Delete "${session.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('workout.delete_title'), t('workout.delete_msg', { name: session.name }), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: () => {
           haptics.medium();
-          toast.success('Session deleted.');
+          toast.success(t('workout.session_deleted'));
           deleteSession(session.id).then(() => {
             const state = useWorkoutStore.getState();
             evaluateAll({
@@ -116,7 +119,7 @@ export default function WorkoutScreen() {
               getPersonalRecord: state.getPersonalRecord,
               getStreakWeeks: state.getStreakWeeks,
             }).catch(() => {});
-          }).catch(() => toast.error('Failed to delete.'));
+          }).catch(() => toast.error(t('workout.failed_delete')));
         },
       },
     ]);
@@ -138,14 +141,17 @@ export default function WorkoutScreen() {
 
       {/* Tab Bar */}
       <View style={styles.tabBar}>
-        {(['sessions', 'exercises'] as const).map((t) => (
+        {([
+          { key: 'sessions' as const, label: t('workout.sessions_tab') },
+          { key: 'exercises' as const, label: t('workout.exercises_tab') },
+        ]).map((item) => (
           <TouchableOpacity
-            key={t}
-            style={[styles.tab, tab === t && styles.tabActive]}
-            onPress={() => setTab(t)}
+            key={item.key}
+            style={[styles.tab, tab === item.key && styles.tabActive]}
+            onPress={() => setTab(item.key)}
           >
-            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
+            <Text style={[styles.tabText, tab === item.key && styles.tabTextActive]}>
+              {item.label}
             </Text>
           </TouchableOpacity>
         ))}
@@ -163,7 +169,7 @@ export default function WorkoutScreen() {
                 onPress={() => setShowNewSession(true)}
               >
                 <Ionicons name="add" size={20} color="#0f0f12" />
-                <Text style={styles.newSessionBtnText}>New Session</Text>
+                <Text style={styles.newSessionBtnText}>{t('workout.new_session')}</Text>
               </TouchableOpacity>
             </View>
           }
@@ -184,7 +190,7 @@ export default function WorkoutScreen() {
                   <View style={styles.sessionInfo}>
                     <Text style={styles.sessionName}>{item.name}</Text>
                     <Text style={styles.sessionDate}>
-                      {new Date(item.date).toLocaleDateString('en-US', {
+                      {new Date(item.date).toLocaleDateString(dateLocale, {
                         weekday: 'short',
                         month: 'short',
                         day: 'numeric',
@@ -196,12 +202,12 @@ export default function WorkoutScreen() {
                 <View style={styles.sessionStats}>
                   <View style={styles.sessionStat}>
                     <Text style={styles.sessionStatValue}>{sessionSets.length}</Text>
-                    <Text style={styles.sessionStatLabel}>sets</Text>
+                    <Text style={styles.sessionStatLabel}>{t('workout.sets')}</Text>
                   </View>
                   <View style={styles.sessionStatDivider} />
                   <View style={styles.sessionStat}>
                     <Text style={styles.sessionStatValue}>{volume.toFixed(0)}</Text>
-                    <Text style={styles.sessionStatLabel}>kg total</Text>
+                    <Text style={styles.sessionStatLabel}>{t('workout.kg_total')}</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -211,8 +217,8 @@ export default function WorkoutScreen() {
             !isLoadingSessions ? (
               <View style={styles.empty}>
                 <Ionicons name="barbell-outline" size={52} color="#2a2a35" />
-                <Text style={styles.emptyTitle}>No sessions yet</Text>
-                <Text style={styles.emptyText}>Create your first workout session</Text>
+                <Text style={styles.emptyTitle}>{t('workout.no_sessions_yet')}</Text>
+                <Text style={styles.emptyText}>{t('workout.create_first_session')}</Text>
               </View>
             ) : (
               <View style={{ padding: 16 }}>
@@ -236,7 +242,7 @@ export default function WorkoutScreen() {
                 style={styles.searchInput}
                 value={exerciseFilter}
                 onChangeText={setExerciseFilter}
-                placeholder="Search exercises…"
+                placeholder={t('workout.search_exercises')}
                 placeholderTextColor="#3a3a4a"
               />
               {exerciseFilter.length > 0 && (
@@ -263,18 +269,21 @@ export default function WorkoutScreen() {
           <TouchableOpacity style={styles.modalBackdrop} onPress={() => setShowNewSession(false)} />
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>New Session</Text>
+            <Text style={styles.modalTitle}>{t('workout.new_session')}</Text>
 
             {/* Blank / Template toggle */}
             <View style={styles.modalTabBar}>
-              {(['blank', 'template'] as const).map((t) => (
+              {([
+                { key: 'blank' as const, label: t('workout.blank_tab') },
+                { key: 'template' as const, label: t('workout.template_tab') },
+              ]).map((item) => (
                 <TouchableOpacity
-                  key={t}
-                  style={[styles.modalTab, newSessionTab === t && styles.modalTabActive]}
-                  onPress={() => setNewSessionTab(t)}
+                  key={item.key}
+                  style={[styles.modalTab, newSessionTab === item.key && styles.modalTabActive]}
+                  onPress={() => setNewSessionTab(item.key)}
                 >
-                  <Text style={[styles.modalTabText, newSessionTab === t && styles.modalTabTextActive]}>
-                    {t === 'blank' ? 'Blank' : 'From Template'}
+                  <Text style={[styles.modalTabText, newSessionTab === item.key && styles.modalTabTextActive]}>
+                    {item.label}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -286,14 +295,14 @@ export default function WorkoutScreen() {
                   style={styles.modalInput}
                   value={newSessionName}
                   onChangeText={setNewSessionName}
-                  placeholder="Session name (optional)"
+                  placeholder={t('workout.session_name_placeholder')}
                   placeholderTextColor="#3a3a4a"
                   autoFocus
                   returnKeyType="done"
                   onSubmitEditing={() => handleCreateSession()}
                 />
                 <TouchableOpacity style={styles.modalBtn} onPress={() => handleCreateSession()}>
-                  <Text style={styles.modalBtnText}>Start Session</Text>
+                  <Text style={styles.modalBtnText}>{t('workout.start_session_btn')}</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -316,8 +325,8 @@ export default function WorkoutScreen() {
                       <View style={styles.templateInfo}>
                         <Text style={styles.templateName}>{item.name}</Text>
                         <Text style={styles.templateMeta}>
-                          {exerciseCount > 0 ? `${exerciseCount} exercises · ` : ''}
-                          {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {exerciseCount > 0 ? `${exerciseCount} ${t('workout.exercises')} · ` : ''}
+                          {new Date(item.date).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}
                         </Text>
                       </View>
                       <Ionicons name="chevron-forward" size={16} color="#3a3a4a" />
@@ -326,7 +335,7 @@ export default function WorkoutScreen() {
                 }}
                 ListEmptyComponent={
                   <View style={{ padding: 20, alignItems: 'center' }}>
-                    <Text style={{ color: '#7a7a90', fontSize: 14 }}>No past sessions to use as template.</Text>
+                    <Text style={{ color: '#7a7a90', fontSize: 14 }}>{t('workout.no_past_sessions')}</Text>
                   </View>
                 }
                 showsVerticalScrollIndicator={false}

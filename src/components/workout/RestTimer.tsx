@@ -9,12 +9,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 import { useWorkoutStore } from '@store/workoutStore';
 
 // Vibration pattern: wait 0ms, vibrate 500ms, pause 300ms, vibrate 500ms (repeats)
 const VIBRATION_PATTERN = [0, 500, 300, 500];
 
 export function RestTimer() {
+  const { t } = useTranslation();
   const { restEndTime, isRestTimerActive, clearRestTimer, startRestTimer, restDuration } =
     useWorkoutStore();
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -90,7 +92,7 @@ export function RestTimer() {
         <Text style={[styles.timeText, { color: accentColor }]}>{timeStr}</Text>
         {isOvertime ? (
           <TouchableOpacity style={styles.stopBtn} onPress={handleStop}>
-            <Text style={styles.stopBtnText}>Stop</Text>
+            <Text style={styles.stopBtnText}>{t('rest_timer.stop')}</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity onPress={handleStop} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

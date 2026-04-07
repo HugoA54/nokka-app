@@ -13,6 +13,7 @@ import {
 import { Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@store/authStore';
 import { useToast } from '@hooks/useToast';
 import { useHaptics } from '@hooks/useHaptics';
@@ -20,6 +21,7 @@ import { useHaptics } from '@hooks/useHaptics';
 type AuthMode = 'login' | 'register';
 
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const { user, signIn, isLoading } = useAuthStore();
   const toast = useToast();
   const haptics = useHaptics();
@@ -35,11 +37,11 @@ export default function LoginScreen() {
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
-      toast.error('Please fill in all fields.');
+      toast.error(t('login.fill_fields'));
       return;
     }
     if (password.length < 6) {
-      toast.error('Password must be at least 6 characters.');
+      toast.error(t('login.password_too_short'));
       return;
     }
 
@@ -48,7 +50,7 @@ export default function LoginScreen() {
       if (mode === 'login') {
         await signIn(email.trim(), password);
         await haptics.success();
-        toast.success('Welcome back!');
+        toast.success(t('login.welcome_message'));
       } else {
         // Register then sign in
         const { supabase } = await import('@services/supabase');
@@ -56,11 +58,11 @@ export default function LoginScreen() {
         if (error) throw error;
         await signIn(email.trim(), password);
         await haptics.success();
-        toast.success('Account created! Welcome to Nokka!');
+        toast.success(t('login.account_created'));
       }
     } catch (err: any) {
       await haptics.error();
-      toast.error(err?.message ?? 'Authentication failed. Please try again.');
+      toast.error(err?.message ?? t('login.auth_failed'));
     } finally {
       setLocalLoading(false);
     }
@@ -88,7 +90,7 @@ export default function LoginScreen() {
             <Text style={styles.logoText}>N</Text>
           </LinearGradient>
           <Text style={styles.appName}>Nokka</Text>
-          <Text style={styles.tagline}>Train. Eat. Thrive.</Text>
+          <Text style={styles.tagline}>{t('login.tagline')}</Text>
         </View>
 
         {/* Mode Toggle */}
@@ -100,7 +102,7 @@ export default function LoginScreen() {
               onPress={() => setMode(m)}
             >
               <Text style={[styles.modeBtnText, mode === m && styles.modeBtnTextActive]}>
-                {m === 'login' ? 'Sign In' : 'Create Account'}
+                {m === 'login' ? t('login.sign_in') : t('login.create_account')}
               </Text>
             </TouchableOpacity>
           ))}
@@ -109,24 +111,24 @@ export default function LoginScreen() {
         {/* Form Card */}
         <View style={styles.formCard}>
           <Text style={styles.formTitle}>
-            {mode === 'login' ? 'Welcome back' : 'Get started'}
+            {mode === 'login' ? t('login.welcome_back') : t('login.get_started')}
           </Text>
           <Text style={styles.formSubtitle}>
             {mode === 'login'
-              ? 'Sign in to your Nokka account'
-              : 'Create your free Nokka account'}
+              ? t('login.sign_in_to')
+              : t('login.create_free')}
           </Text>
 
           {/* Email */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Email</Text>
+            <Text style={styles.fieldLabel}>{t('login.email')}</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="mail-outline" size={18} color="#7a7a90" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="your@email.com"
+                placeholder={t('login.email_placeholder')}
                 placeholderTextColor="#3a3a4a"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -139,14 +141,14 @@ export default function LoginScreen() {
 
           {/* Password */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Password</Text>
+            <Text style={styles.fieldLabel}>{t('login.password')}</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="lock-closed-outline" size={18} color="#7a7a90" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Min. 6 characters"
+                placeholder={t('login.password_placeholder')}
                 placeholderTextColor="#3a3a4a"
                 secureTextEntry={!showPassword}
                 returnKeyType="done"
@@ -177,7 +179,7 @@ export default function LoginScreen() {
             ) : (
               <>
                 <Text style={styles.submitBtnText}>
-                  {mode === 'login' ? 'Sign In' : 'Create Account'}
+                  {mode === 'login' ? t('login.submit_signin') : t('login.submit_register')}
                 </Text>
                 <Ionicons name="arrow-forward" size={18} color="#0f0f12" />
               </>
@@ -188,10 +190,10 @@ export default function LoginScreen() {
         {/* Features showcase */}
         <View style={styles.features}>
           {[
-            { icon: 'barbell-outline', text: 'Track every workout & set' },
-            { icon: 'nutrition-outline', text: 'Log meals with food database' },
-            { icon: 'camera-outline', text: 'AI macro analysis from photos' },
-            { icon: 'stats-chart-outline', text: 'Deep performance analytics' },
+            { icon: 'barbell-outline', text: t('login.feature_workout') },
+            { icon: 'nutrition-outline', text: t('login.feature_meals') },
+            { icon: 'camera-outline', text: t('login.feature_ai') },
+            { icon: 'stats-chart-outline', text: t('login.feature_stats') },
           ].map((f) => (
             <View key={f.icon} style={styles.featureRow}>
               <View style={styles.featureIcon}>

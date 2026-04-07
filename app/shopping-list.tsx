@@ -9,6 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@store/authStore';
 import { useNutritionStore } from '@store/nutritionStore';
 import { useToast } from '@hooks/useToast';
@@ -26,6 +27,7 @@ const CATEGORY_ICONS: Record<ShoppingCategory, { icon: string; color: string }> 
 };
 
 export default function ShoppingListScreen() {
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const { shoppingList, loadShoppingList, togglePurchased, removeShoppingItem, clearShoppingList } =
     useNutritionStore();
@@ -49,7 +51,7 @@ export default function ShoppingListScreen() {
   };
 
   const handleClear = () => {
-    Alert.alert('Clear List', 'Remove all purchased items?', [
+    Alert.alert(t('shopping_list.title'), t('shopping_list.clear_list_confirm'), [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Clear',
@@ -57,7 +59,7 @@ export default function ShoppingListScreen() {
         onPress: async () => {
           await haptics.medium();
           await clearShoppingList(user!.id);
-          toast.success('Shopping list cleared.');
+          toast.success(t('shopping_list.list_cleared'));
         },
       },
     ]);
@@ -81,7 +83,7 @@ export default function ShoppingListScreen() {
           <Text style={styles.progressText}>
             {purchased.length} / {shoppingList.length} items
           </Text>
-          <Text style={styles.progressSubtext}>completed</Text>
+          <Text style={styles.progressSubtext}>{t('shopping_list.completed')}</Text>
         </View>
         <View style={styles.progressTrack}>
           <View
@@ -97,7 +99,7 @@ export default function ShoppingListScreen() {
         </View>
         {purchased.length > 0 && (
           <TouchableOpacity style={styles.clearBtn} onPress={handleClear}>
-            <Text style={styles.clearBtnText}>Clear done</Text>
+            <Text style={styles.clearBtnText}>{t('shopping_list.clear_done')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -152,9 +154,9 @@ export default function ShoppingListScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="cart-outline" size={60} color="#2a2a35" />
-            <Text style={styles.emptyTitle}>No shopping list yet</Text>
+            <Text style={styles.emptyTitle}>{t('shopping_list.no_shopping_list')}</Text>
             <Text style={styles.emptyText}>
-              Go to Meal Planning and generate your shopping list for the week.
+              {t('shopping_list.go_meal_planning')}
             </Text>
           </View>
         }

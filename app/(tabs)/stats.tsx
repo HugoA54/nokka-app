@@ -9,6 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { LineChart, BarChart, ContributionGraph } from 'react-native-chart-kit';
 import { useAuthStore } from '@store/authStore';
 import { useWorkoutStore } from '@store/workoutStore';
@@ -46,6 +47,7 @@ export default function StatsScreen() {
     setSelectedExercise,
     getExerciseProgressionData,
   } = useWorkoutStore();
+  const { t } = useTranslation();
   const [tab, setTab] = useState<StatsTab>('volume');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -98,10 +100,10 @@ export default function StatsScreen() {
       {/* Header stats */}
       <View style={styles.statsRow}>
         {[
-          { label: 'Total Sessions', value: sessions.length, icon: 'barbell-outline' },
-          { label: 'Total Sets', value: totalSets, icon: 'layers-outline' },
-          { label: 'Volume (t)', value: `${(totalVolume / 1000).toFixed(1)}`, icon: 'trending-up-outline' },
-          { label: 'Streak (wks)', value: streak, icon: 'flame-outline' },
+          { label: t('stats.total_sessions'), value: sessions.length, icon: 'barbell-outline' },
+          { label: t('stats.total_sets'), value: totalSets, icon: 'layers-outline' },
+          { label: t('stats.volume'), value: `${(totalVolume / 1000).toFixed(1)}`, icon: 'trending-up-outline' },
+          { label: t('stats.streak'), value: streak, icon: 'flame-outline' },
         ].map((stat) => (
           <View key={stat.label} style={styles.statCard}>
             <Ionicons name={stat.icon as any} size={18} color="#c8f060" />
@@ -114,17 +116,17 @@ export default function StatsScreen() {
       {/* Tab Bar */}
       <View style={styles.tabBar}>
         {([
-          { key: 'volume', label: 'Volume' },
-          { key: 'exercises', label: 'PRs' },
-          { key: 'muscles', label: 'Muscles' },
-          { key: 'calendar', label: 'Calendar' },
-        ] as { key: StatsTab; label: string }[]).map((t) => (
+          { key: 'volume', label: t('stats.volume_chart') },
+          { key: 'exercises', label: t('stats.prs_tab') },
+          { key: 'muscles', label: t('stats.muscles_tab') },
+          { key: 'calendar', label: t('stats.calendar_tab') },
+        ] as { key: StatsTab; label: string }[]).map((item) => (
           <TouchableOpacity
-            key={t.key}
-            style={[styles.tab, tab === t.key && styles.tabActive]}
-            onPress={() => setTab(t.key)}
+            key={item.key}
+            style={[styles.tab, tab === item.key && styles.tabActive]}
+            onPress={() => setTab(item.key)}
           >
-            <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>{t.label}</Text>
+            <Text style={[styles.tabText, tab === item.key && styles.tabTextActive]}>{item.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -132,7 +134,7 @@ export default function StatsScreen() {
       {/* Volume Chart */}
       {tab === 'volume' && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Volume per Session (kg)</Text>
+          <Text style={styles.sectionTitle}>{t('stats.volume_per_session')}</Text>
           {volumeData.length >= 2 ? (
             <LineChart
               data={{ labels: volumeLabels, datasets: [{ data: volumeData, color: () => '#c8f060', strokeWidth: 2 }] }}
@@ -144,7 +146,7 @@ export default function StatsScreen() {
             />
           ) : (
             <View style={styles.noData}>
-              <Text style={styles.noDataText}>Need at least 2 sessions to display chart</Text>
+              <Text style={styles.noDataText}>{t('stats.need_two_sessions')}</Text>
             </View>
           )}
         </View>
@@ -153,10 +155,10 @@ export default function StatsScreen() {
       {/* Personal Records */}
       {tab === 'exercises' && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Records</Text>
+          <Text style={styles.sectionTitle}>{t('stats.personal_records')}</Text>
           {prs.length === 0 ? (
             <View style={styles.noData}>
-              <Text style={styles.noDataText}>No sets logged yet</Text>
+              <Text style={styles.noDataText}>{t('stats.no_sets_logged')}</Text>
             </View>
           ) : (
             prs.map((pr, i) => pr && (
@@ -172,7 +174,7 @@ export default function StatsScreen() {
                 </View>
                 <View style={styles.prRM}>
                   <Text style={styles.prRMValue}>{pr.estimated_1rm}kg</Text>
-                  <Text style={styles.prRMLabel}>est. 1RM</Text>
+                  <Text style={styles.prRMLabel}>{t('stats.est_1rm')}</Text>
                 </View>
               </View>
             ))
@@ -183,10 +185,10 @@ export default function StatsScreen() {
       {/* Muscle Distribution */}
       {tab === 'muscles' && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Muscle Group Distribution</Text>
+          <Text style={styles.sectionTitle}>{t('stats.muscle_distribution')}</Text>
           {muscleDist.length === 0 ? (
             <View style={styles.noData}>
-              <Text style={styles.noDataText}>No sets logged yet</Text>
+              <Text style={styles.noDataText}>{t('stats.no_sets_logged')}</Text>
             </View>
           ) : (
             muscleDist
@@ -218,7 +220,7 @@ export default function StatsScreen() {
       {/* Calendar Heatmap */}
       {tab === 'calendar' && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Workout Calendar</Text>
+          <Text style={styles.sectionTitle}>{t('stats.workout_calendar')}</Text>
           {heatmapData.length > 0 ? (
             <ContributionGraph
               values={heatmapData.map((h) => ({ date: h.date, count: Math.min(Math.round(h.count / 3), 4) }))}
@@ -234,7 +236,7 @@ export default function StatsScreen() {
             />
           ) : (
             <View style={styles.noData}>
-              <Text style={styles.noDataText}>No workout data yet</Text>
+              <Text style={styles.noDataText}>{t('stats.no_data')}</Text>
             </View>
           )}
         </View>

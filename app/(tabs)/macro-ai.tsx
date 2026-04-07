@@ -10,6 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
 import { useAuthStore } from '@store/authStore';
 import { useMacroAIStore } from '@store/macroAIStore';
@@ -35,18 +36,19 @@ function GoalsModal({
   onSave: (g: AIMacroGoals) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [local, setLocal] = useState(goals);
   useEffect(() => { setLocal(goals); }, [goals]);
 
   const fields: { key: keyof AIMacroGoals; label: string; unit: string; color: string }[] = [
-    { key: 'calories', label: 'Calories', unit: 'kcal', color: '#f0f0f0' },
-    { key: 'proteines', label: 'Protein', unit: 'g', color: '#60d4f0' },
-    { key: 'glucides', label: 'Carbs', unit: 'g', color: '#f0c060' },
-    { key: 'lipides', label: 'Fats', unit: 'g', color: '#f060a8' },
+    { key: 'calories', label: t('macro_ai.calories_label'), unit: 'kcal', color: '#f0f0f0' },
+    { key: 'proteines', label: t('macro_ai.protein_label'), unit: 'g', color: '#60d4f0' },
+    { key: 'glucides', label: t('macro_ai.carbs_label'), unit: 'g', color: '#f0c060' },
+    { key: 'lipides', label: t('macro_ai.fats_label'), unit: 'g', color: '#f060a8' },
   ];
 
   return (
-    <Modal visible={visible} onClose={onClose} title="Daily Goals" scrollable>
+    <Modal visible={visible} onClose={onClose} title={t('macro_ai.daily_goals')} scrollable>
       {fields.map(({ key, label, unit, color }) => (
         <View key={key} style={goalStyles.field}>
           <View style={goalStyles.fieldLabel}>
@@ -67,7 +69,7 @@ function GoalsModal({
         </View>
       ))}
       <TouchableOpacity style={goalStyles.saveBtn} onPress={() => onSave(local)}>
-        <Text style={goalStyles.saveBtnText}>Save Goals</Text>
+        <Text style={goalStyles.saveBtnText}>{t('macro_ai.save_goals')}</Text>
       </TouchableOpacity>
     </Modal>
   );
@@ -101,6 +103,7 @@ function EditMealModal({
   onSave: (updates: Partial<AIMeal>) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [calories, setCalories] = useState('');
   const [proteines, setProteines] = useState('');
@@ -118,13 +121,13 @@ function EditMealModal({
   }, [meal]);
 
   return (
-    <Modal visible={visible} onClose={onClose} title="Edit Meal" scrollable>
+    <Modal visible={visible} onClose={onClose} title={t('macro_ai.edit_meal')} scrollable>
       {[
-        { label: 'Meal Name', value: name, onchange: setName, keyboard: 'default' as const, color: '#f0f0f0' },
-        { label: 'Calories (kcal)', value: calories, onchange: setCalories, keyboard: 'number-pad' as const, color: '#f0f0f0' },
-        { label: 'Protein (g)', value: proteines, onchange: setProteines, keyboard: 'number-pad' as const, color: '#60d4f0' },
-        { label: 'Carbs (g)', value: glucides, onchange: setGlucides, keyboard: 'number-pad' as const, color: '#f0c060' },
-        { label: 'Fats (g)', value: lipides, onchange: setLipides, keyboard: 'number-pad' as const, color: '#f060a8' },
+        { label: t('macro_ai.meal_name'), value: name, onchange: setName, keyboard: 'default' as const, color: '#f0f0f0' },
+        { label: t('macro_ai.calories_label'), value: calories, onchange: setCalories, keyboard: 'number-pad' as const, color: '#f0f0f0' },
+        { label: t('macro_ai.protein_label'), value: proteines, onchange: setProteines, keyboard: 'number-pad' as const, color: '#60d4f0' },
+        { label: t('macro_ai.carbs_label'), value: glucides, onchange: setGlucides, keyboard: 'number-pad' as const, color: '#f0c060' },
+        { label: t('macro_ai.fats_label'), value: lipides, onchange: setLipides, keyboard: 'number-pad' as const, color: '#f060a8' },
       ].map(({ label, value, onchange, keyboard, color }) => (
         <View key={label} style={goalStyles.field}>
           <Text style={[goalStyles.label, { color }]}>{label}</Text>
@@ -149,7 +152,7 @@ function EditMealModal({
           })
         }
       >
-        <Text style={goalStyles.saveBtnText}>Save Changes</Text>
+        <Text style={goalStyles.saveBtnText}>{t('macro_ai.save_changes')}</Text>
       </TouchableOpacity>
     </Modal>
   );
@@ -171,6 +174,7 @@ export default function MacroAIScreen() {
   const { todayLog, loadTodayLog } = useNutritionStore();
   const toast = useToast();
   const haptics = useHaptics();
+  const { t } = useTranslation();
 
   const [tab, setTab] = useState<TabView>('today');
   const [showGoals, setShowGoals] = useState(false);
@@ -249,7 +253,7 @@ export default function MacroAIScreen() {
         onPress: async () => {
           await haptics.medium();
           await deleteMeal(user!.id, meal.id);
-          toast.success('Meal deleted.');
+          toast.success(t('macro_ai.meal_deleted'));
         },
       },
     ]);
@@ -259,14 +263,14 @@ export default function MacroAIScreen() {
     if (!editingMeal || !user) return;
     await updateMeal(user.id, editingMeal.id, updates);
     setEditingMeal(null);
-    toast.success('Meal updated!');
+    toast.success(t('macro_ai.meal_updated'));
   };
 
   const handleSaveGoals = async (newGoals: AIMacroGoals) => {
     if (!user) return;
     await updateGoals(user.id, newGoals);
     setShowGoals(false);
-    toast.success('Goals saved!');
+    toast.success(t('macro_ai.goals_saved'));
   };
 
 
@@ -275,21 +279,21 @@ export default function MacroAIScreen() {
       {/* Tab Bar */}
       <View style={styles.tabBar}>
         {([
-          { key: 'today', label: 'Today', icon: 'today-outline' },
-          { key: 'camera', label: 'AI Camera', icon: 'camera-outline' },
-        ] as const).map((t) => (
+          { key: 'today', label: t('macro_ai.today'), icon: 'today-outline' },
+          { key: 'camera', label: t('macro_ai.ai_camera'), icon: 'camera-outline' },
+        ] as const).map((item) => (
           <TouchableOpacity
-            key={t.key}
-            style={[styles.tab, tab === t.key && styles.tabActive]}
-            onPress={() => setTab(t.key)}
+            key={item.key}
+            style={[styles.tab, tab === item.key && styles.tabActive]}
+            onPress={() => setTab(item.key)}
           >
             <Ionicons
-              name={t.icon}
+              name={item.icon}
               size={16}
-              color={tab === t.key ? '#0f0f12' : '#7a7a90'}
+              color={tab === item.key ? '#0f0f12' : '#7a7a90'}
             />
-            <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>
-              {t.label}
+            <Text style={[styles.tabText, tab === item.key && styles.tabTextActive]}>
+              {item.label}
             </Text>
           </TouchableOpacity>
         ))}
@@ -308,16 +312,16 @@ export default function MacroAIScreen() {
                 totals={totals}
                 goals={goals}
                 onEditGoals={() => setShowGoals(true)}
-                title="Daily Macros (Combined)"
+                title={t('macro_ai.daily_macros')}
               />
               <View style={styles.mealsHeader}>
-                <Text style={styles.mealsTitle}>Today's Meals</Text>
+                <Text style={styles.mealsTitle}>{t('macro_ai.today_meals')}</Text>
                 <TouchableOpacity
                   style={styles.cameraBtn}
                   onPress={() => setTab('camera')}
                 >
                   <Ionicons name="camera" size={16} color="#0f0f12" />
-                  <Text style={styles.cameraBtnText}>Analyze</Text>
+                  <Text style={styles.cameraBtnText}>{t('macro_ai.analyze')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -352,11 +356,11 @@ export default function MacroAIScreen() {
             !isLoadingMeals ? (
               <View style={styles.empty}>
                 <Ionicons name="camera-outline" size={52} color="#2a2a35" />
-                <Text style={styles.emptyTitle}>No meals logged today</Text>
-                <Text style={styles.emptyText}>Take a photo to analyze your first meal</Text>
+                <Text style={styles.emptyTitle}>{t('macro_ai.no_meals_logged')}</Text>
+                <Text style={styles.emptyText}>{t('macro_ai.take_photo')}</Text>
                 <TouchableOpacity style={styles.emptyBtn} onPress={() => setTab('camera')}>
                   <Ionicons name="camera-outline" size={18} color="#0f0f12" />
-                  <Text style={styles.emptyBtnText}>Open AI Camera</Text>
+                  <Text style={styles.emptyBtnText}>{t('macro_ai.open_ai_camera')}</Text>
                 </TouchableOpacity>
               </View>
             ) : null

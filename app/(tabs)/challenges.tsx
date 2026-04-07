@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -96,6 +97,7 @@ function BadgeGrid() {
 export default function ChallengesScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('active');
   const { sessionProgress, weeklyProgress, unlockedAchievements, evaluateAll } = useChallengeStore();
+  const { t } = useTranslation();
   const dailyChallenges = getDailySessionChallenges();
   const weeklyChallenges = getWeeklyChallenges();
 
@@ -122,7 +124,7 @@ export default function ChallengesScreen() {
     <SafeAreaView style={styles.root}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Défis</Text>
+        <Text style={styles.headerTitle}>{t('challenges.title')}</Text>
         <View style={styles.headerBadge}>
           <Ionicons name="trophy" size={13} color="#f0c060" />
           <Text style={styles.headerBadgeText}>{unlockedCount}/{totalBadges}</Text>
@@ -135,34 +137,34 @@ export default function ChallengesScreen() {
           style={[styles.tab, activeTab === 'active' && styles.tabActive]}
           onPress={() => setActiveTab('active')}
         >
-          <Text style={[styles.tabText, activeTab === 'active' && styles.tabTextActive]}>En cours</Text>
+          <Text style={[styles.tabText, activeTab === 'active' && styles.tabTextActive]}>{t('challenges.in_progress')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'badges' && styles.tabActive]}
           onPress={() => setActiveTab('badges')}
         >
-          <Text style={[styles.tabText, activeTab === 'badges' && styles.tabTextActive]}>Badges</Text>
+          <Text style={[styles.tabText, activeTab === 'badges' && styles.tabTextActive]}>{t('challenges.badges')}</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {activeTab === 'active' ? (
           <>
-            <Text style={styles.sectionTitle}>Défis du jour</Text>
-            <Text style={styles.sectionHint}>Changent chaque jour — mis à jour en temps réel</Text>
+            <Text style={styles.sectionTitle}>{t('challenges.challenge_today')}</Text>
+            <Text style={styles.sectionHint}>{t('challenges.change_daily')}</Text>
             {dailyChallenges.map((def) => (
               <ChallengeCard key={def.id} def={def} progress={sessionProgress[def.id]} />
             ))}
 
-            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Défis de la semaine</Text>
-            <Text style={styles.sectionHint}>Changent chaque lundi</Text>
+            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{t('challenges.challenge_week')}</Text>
+            <Text style={styles.sectionHint}>{t('challenges.change_weekly')}</Text>
             {weeklyChallenges.map((def) => (
               <ChallengeCard key={def.id} def={def} progress={weeklyProgress[def.id]} />
             ))}
           </>
         ) : (
           <>
-            <Text style={styles.sectionTitle}>Badges permanents</Text>
+            <Text style={styles.sectionTitle}>{t('challenges.permanent_badges')}</Text>
             <Text style={styles.sectionHint}>{unlockedCount} débloqué{unlockedCount > 1 ? 's' : ''} sur {totalBadges}</Text>
             <BadgeGrid />
           </>

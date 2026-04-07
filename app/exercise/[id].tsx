@@ -4,6 +4,7 @@ import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { useWorkoutStore } from '@store/workoutStore';
+import { useTranslation } from 'react-i18next';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -22,6 +23,7 @@ export default function ExerciseDetailScreen() {
     if (exercises.length === 0) loadExercises();
   }, []);
 
+  const { t } = useTranslation();
   const [metric, setMetric] = useState<'1rm' | 'weight' | 'volume'>('1rm');
 
   const exercise = exercises.find((e) => String(e.id) === String(id));
@@ -36,7 +38,7 @@ export default function ExerciseDetailScreen() {
   if (!exercise) {
     return (
       <View style={styles.center}>
-        <Text style={styles.notFound}>Exercise not found</Text>
+        <Text style={styles.notFound}>{t('exercise.exercise_not_found')}</Text>
       </View>
     );
   }
@@ -52,7 +54,7 @@ export default function ExerciseDetailScreen() {
     const d = new Date(p.date);
     return `${d.getMonth() + 1}/${d.getDate()}`;
   });
-  const metricTitle = metric === 'weight' ? 'Poids max' : metric === 'volume' ? 'Volume par série' : '1RM Progression';
+  const metricTitle = metric === 'weight' ? t('exercise.max_weight') : metric === 'volume' ? t('exercise.volume_per_set') : t('exercise.one_rm_progression');
   const metricUnit = metric === 'volume' ? 'kg×reps' : 'kg';
 
   return (
@@ -63,7 +65,7 @@ export default function ExerciseDetailScreen() {
           <Text style={styles.name}>{exercise.name}</Text>
           {exercise.is_bodyweight && (
             <View style={styles.bwBadge}>
-              <Text style={styles.bwText}>Bodyweight</Text>
+              <Text style={styles.bwText}>{t('exercise.bodyweight')}</Text>
             </View>
           )}
         </View>
@@ -79,22 +81,22 @@ export default function ExerciseDetailScreen() {
         <View style={styles.prCard}>
           <View style={styles.prHeader}>
             <Ionicons name="trophy" size={20} color="#f0c060" />
-            <Text style={styles.prTitle}>Personal Record</Text>
+            <Text style={styles.prTitle}>{t('exercise.personal_record')}</Text>
           </View>
           <View style={styles.prStats}>
             <View style={styles.prStat}>
               <Text style={styles.prStatValue}>{pr.weight}</Text>
-              <Text style={styles.prStatLabel}>kg lifted</Text>
+              <Text style={styles.prStatLabel}>{t('exercise.kg_lifted')}</Text>
             </View>
             <View style={styles.prDivider} />
             <View style={styles.prStat}>
               <Text style={styles.prStatValue}>{pr.repetitions}</Text>
-              <Text style={styles.prStatLabel}>reps</Text>
+              <Text style={styles.prStatLabel}>{t('exercise.reps')}</Text>
             </View>
             <View style={styles.prDivider} />
             <View style={styles.prStat}>
               <Text style={[styles.prStatValue, { color: '#c8f060' }]}>{pr.estimated_1rm}</Text>
-              <Text style={styles.prStatLabel}>est. 1RM (kg)</Text>
+              <Text style={styles.prStatLabel}>{t('exercise.est_1rm_kg')}</Text>
             </View>
           </View>
         </View>
@@ -105,7 +107,7 @@ export default function ExerciseDetailScreen() {
         <View style={styles.lastCard}>
           <Ionicons name="time-outline" size={16} color="#7a7a90" />
           <Text style={styles.lastText}>
-            Last workout: <Text style={{ color: '#f0f0f0', fontWeight: '700' }}>{lastPerf.weight}kg × {lastPerf.repetitions} reps</Text>
+            {t('exercise.last_workout')} <Text style={{ color: '#f0f0f0', fontWeight: '700' }}>{lastPerf.weight}kg × {lastPerf.repetitions} reps</Text>
           </Text>
         </View>
       )}
@@ -116,7 +118,7 @@ export default function ExerciseDetailScreen() {
         <View style={styles.metricRow}>
           {([
             { key: '1rm', label: 'Est. 1RM' },
-            { key: 'weight', label: 'Poids max' },
+            { key: 'weight', label: t('exercise.max_weight') },
             { key: 'volume', label: 'Volume' },
           ] as { key: typeof metric; label: string }[]).map((m) => (
             <TouchableOpacity
@@ -156,8 +158,8 @@ export default function ExerciseDetailScreen() {
           <View style={styles.noChart}>
             <Text style={styles.noChartText}>
               {progression.length === 0
-                ? 'No sets logged for this exercise yet'
-                : 'Need at least 2 data points to show chart'}
+                ? t('exercise.no_sets')
+                : t('exercise.need_two_points')}
             </Text>
           </View>
         )}
@@ -165,10 +167,10 @@ export default function ExerciseDetailScreen() {
 
       {/* All Sets History */}
       <View style={styles.historySection}>
-        <Text style={styles.sectionTitle}>All Sets ({progression.length})</Text>
+        <Text style={styles.sectionTitle}>{t('exercise.all_sets')} ({progression.length})</Text>
         {progression.length === 0 ? (
           <View style={styles.noHistory}>
-            <Text style={styles.noHistoryText}>No sets logged yet for this exercise</Text>
+            <Text style={styles.noHistoryText}>{t('exercise.no_history')}</Text>
           </View>
         ) : (
           [...progression].reverse().slice(0, 20).map((p, i) => (

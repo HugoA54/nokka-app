@@ -9,6 +9,7 @@ import {
   Modal as RNModal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@store/authStore';
 import { useNutritionStore } from '@store/nutritionStore';
@@ -41,6 +42,7 @@ export default function NutritionScreen() {
   const { meals: aiMeals, fetchTodayMeals } = useMacroAIStore();
   const toast = useToast();
   const haptics = useHaptics();
+  const { t } = useTranslation();
   const [tab, setTab] = useState<NutritionTab>('diary');
   const [showFoodSearch, setShowFoodSearch] = useState(false);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
@@ -90,10 +92,10 @@ export default function NutritionScreen() {
     try {
       await addMealToToday(user.id, mealId, profileGoals);
       await haptics.success();
-      toast.success('Meal added to today!');
+      toast.success(t('nutrition.meal_added'));
       setTab('diary');
-    } catch (err: any) {
-      toast.error(err?.message ?? 'Failed to add meal.');
+    } catch {
+      toast.error(t('nutrition.failed_add'));
     }
   };
 
@@ -101,9 +103,9 @@ export default function NutritionScreen() {
     try {
       await removeMealFromToday(entryId);
       await haptics.light();
-      toast.success('Entry removed.');
+      toast.success(t('nutrition.entry_removed'));
     } catch {
-      toast.error('Failed to remove entry.');
+      toast.error(t('nutrition.failed_remove'));
     }
   };
 
@@ -142,14 +144,18 @@ export default function NutritionScreen() {
     <View style={styles.container}>
       {/* Tab Bar */}
       <View style={styles.tabBar}>
-        {(['diary', 'meals', 'planning'] as NutritionTab[]).map((t) => (
+        {([
+          { key: 'diary' as NutritionTab, label: t('nutrition.diary') },
+          { key: 'meals' as NutritionTab, label: t('nutrition.meals') },
+          { key: 'planning' as NutritionTab, label: t('nutrition.planning') },
+        ]).map((item) => (
           <TouchableOpacity
-            key={t}
-            style={[styles.tab, tab === t && styles.tabActive]}
-            onPress={() => setTab(t)}
+            key={item.key}
+            style={[styles.tab, tab === item.key && styles.tabActive]}
+            onPress={() => setTab(item.key)}
           >
-            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
+            <Text style={[styles.tabText, tab === item.key && styles.tabTextActive]}>
+              {item.label}
             </Text>
           </TouchableOpacity>
         ))}
@@ -165,7 +171,7 @@ export default function NutritionScreen() {
                 <View style={styles.calRow}>
                   <View>
                     <Text style={styles.calValue}>{Math.round(cal)}</Text>
-                    <Text style={styles.calLabel}>kcal eaten</Text>
+                    <Text style={styles.calLabel}>{t('nutrition.kcal_eaten')}</Text>
                   </View>
                   <View style={styles.calCircle}>
                     <Text style={styles.calPercent}>
@@ -174,14 +180,14 @@ export default function NutritionScreen() {
                   </View>
                   <View style={styles.calRight}>
                     <Text style={styles.calRemainingValue}>{Math.max(0, calGoal - cal).toFixed(0)}</Text>
-                    <Text style={styles.calLabel}>remaining</Text>
+                    <Text style={styles.calLabel}>{t('nutrition.remaining')}</Text>
                   </View>
                 </View>
                 {/* Macro bars */}
                 <View style={styles.macros}>
-                  <MacroBar label="Protein" current={protein} goal={proteinGoal} color="#60d4f0" />
-                  <MacroBar label="Carbs" current={carbs} goal={carbsGoal} color="#f0c060" />
-                  <MacroBar label="Fats" current={fats} goal={fatsGoal} color="#f060a8" />
+                  <MacroBar label={t('profile.protein')} current={protein} goal={proteinGoal} color="#60d4f0" />
+                  <MacroBar label={t('profile.carbs')} current={carbs} goal={carbsGoal} color="#f0c060" />
+                  <MacroBar label={t('profile.fats')} current={fats} goal={fatsGoal} color="#f060a8" />
                 </View>
               </View>
 
@@ -189,8 +195,8 @@ export default function NutritionScreen() {
               <View style={styles.waterCard}>
                 <View style={styles.waterHeader}>
                   <Ionicons name="water" size={18} color="#60d4f0" />
-                  <Text style={styles.waterTitle}>Water</Text>
-                  <Text style={styles.waterCount}>{water} / 8 glasses</Text>
+                  <Text style={styles.waterTitle}>{t('nutrition.water')}</Text>
+                  <Text style={styles.waterCount}>{water} / 8 {t('nutrition.glasses')}</Text>
                 </View>
                 <View style={styles.waterGlasses}>
                   {Array.from({ length: 8 }, (_, i) => (
@@ -213,15 +219,15 @@ export default function NutritionScreen() {
               <View style={styles.addActions}>
                 <TouchableOpacity style={styles.addBtn} onPress={() => setShowFoodSearch(true)}>
                   <Ionicons name="search" size={16} color="#0f0f12" />
-                  <Text style={styles.addBtnText}>Search Food</Text>
+                  <Text style={styles.addBtnText}>{t('nutrition.search_food')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.addBtnSecondary} onPress={() => setShowBarcodeScanner(true)}>
                   <Ionicons name="barcode-outline" size={16} color="#f0f0f0" />
-                  <Text style={styles.addBtnSecondaryText}>Scan</Text>
+                  <Text style={styles.addBtnSecondaryText}>{t('nutrition.scan')}</Text>
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.sectionTitle}>Today's Entries</Text>
+              <Text style={styles.sectionTitle}>{t('nutrition.today_entries')}</Text>
             </View>
           }
           data={todayMealEntries}
@@ -245,7 +251,7 @@ export default function NutritionScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="nutrition-outline" size={40} color="#2a2a35" />
-              <Text style={styles.emptyText}>No entries yet. Start by adding food!</Text>
+              <Text style={styles.emptyText}>{t('nutrition.no_entries')}</Text>
             </View>
           }
           contentContainerStyle={styles.list}
@@ -265,7 +271,7 @@ export default function NutritionScreen() {
                 onPress={() => router.push('/meal/editor')}
               >
                 <Ionicons name="add" size={20} color="#0f0f12" />
-                <Text style={styles.newMealBtnText}>Create Meal</Text>
+                <Text style={styles.newMealBtnText}>{t('nutrition.create_meal')}</Text>
               </TouchableOpacity>
             </View>
           }
@@ -280,8 +286,8 @@ export default function NutritionScreen() {
             !isLoadingMeals ? (
               <View style={styles.empty}>
                 <Ionicons name="restaurant-outline" size={52} color="#2a2a35" />
-                <Text style={styles.emptyTitle}>No meals yet</Text>
-                <Text style={styles.emptyText}>Create reusable meals from your food library</Text>
+                <Text style={styles.emptyTitle}>{t('nutrition.no_meals')}</Text>
+                <Text style={styles.emptyText}>{t('nutrition.create_reusable')}</Text>
               </View>
             ) : null
           }
@@ -297,14 +303,14 @@ export default function NutritionScreen() {
             onPress={() => router.push('/meal/prep')}
           >
             <Ionicons name="calendar-outline" size={22} color="#0f0f12" />
-            <Text style={styles.planningBtnText}>Open Meal Planner</Text>
+            <Text style={styles.planningBtnText}>{t('nutrition.open_meal_planner')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.shoppingBtn}
             onPress={() => router.push('/shopping-list')}
           >
             <Ionicons name="cart-outline" size={22} color="#f0f0f0" />
-            <Text style={styles.shoppingBtnText}>Shopping List</Text>
+            <Text style={styles.shoppingBtnText}>{t('nutrition.shopping_list')}</Text>
           </TouchableOpacity>
         </View>
       )}

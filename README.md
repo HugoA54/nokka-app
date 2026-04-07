@@ -9,8 +9,9 @@ Application mobile React Native (Expo) combinant suivi d'entraînement, nutritio
 - **Framework** : React Native + Expo (file-based routing via Expo Router)
 - **Backend** : Supabase (PostgreSQL + Auth)
 - **State management** : Zustand
-- **IA** : Google Gemini 2.5 Flash (analyse photo de repas)
+- **IA** : Google Gemini 2.5 Flash (analyse photo de repas, analyse de séance, surcharge progressive)
 - **Base alimentaire** : Open Food Facts API v2
+- **i18n** : i18next + react-i18next (Français / English, persistance + détection locale appareil)
 - **UI** : Dark theme custom — accent lime `#c8f060`
 
 ---
@@ -31,7 +32,7 @@ Application mobile React Native (Expo) combinant suivi d'entraînement, nutritio
 - Grille de raccourcis vers toutes les fonctions majeures
 - Accès rapide au classement
 - Pull-to-refresh
-- **Rappel créatine** : notification toutes les heures tant que non prise, bouton "Pris ✓" pour confirmer, reset quotidien automatique
+- **Rappel créatine** : carte dashboard avec bouton "Pris ✓", reset quotidien automatique — mode intervalle (1–4h) ou heure fixe configurable depuis le profil
 
 ---
 
@@ -67,6 +68,17 @@ Application mobile React Native (Expo) combinant suivi d'entraînement, nutritio
 - Mode overtime : timer négatif rouge (+MM:SS) avec vibration continue à la fin du repos
 - Arrêt uniquement par bouton Stop (pas d'auto-dismiss)
 - Barre de progression dans la notification
+
+#### Analyse IA de séance (Gemini)
+- Analyse de la séance en cours via Gemini, comparée à la séance précédente
+- Mise en cache dans AsyncStorage (`ai_analysis_<id>`) — affichée inline en bas de séance
+- Recommandations surcharge progressive générées une seule fois par séance (`recs_<id>`) et affichées dans le header
+- Bouton refresh pour regénérer l'analyse
+
+#### Résumé screenshot
+- Bouton caméra dans le header de séance
+- Modale compacte avec toutes les séries regroupées par exercice (chips `poids × reps`)
+- Conçu pour tenir en un seul screenshot
 
 #### Templates
 - Création de sessions depuis des routines passées
@@ -152,6 +164,18 @@ Application mobile React Native (Expo) combinant suivi d'entraînement, nutritio
 
 ### Profil & Paramètres
 
+#### Clé API Gemini
+- Saisie et sauvegarde de la clé API personnelle (Google AI Studio)
+- Toggle pour activer/désactiver toutes les fonctions IA
+
+#### Rappel créatine
+- Mode **Intervalle** : notification répétée toutes les 1–4h jusqu'à ce que la prise soit confirmée
+- Mode **Heure fixe** : notification à une heure précise (7h, 8h, 9h…)
+- Désactivation complète possible
+
+#### Langue
+- Sélecteur FR / EN en bas du profil, persisté dans AsyncStorage et appliqué immédiatement
+
 #### Profil utilisateur
 - Affichage email et avatar (initiale)
 - BMR (Mifflin-St Jeor) et TDEE calculés et affichés
@@ -188,6 +212,7 @@ Application mobile React Native (Expo) combinant suivi d'entraînement, nutritio
 - Données par utilisateur : rang, pseudo, sessions, volume (en tonnes)
 - Bannière "Mon classement" avec position et stats personnelles
 - Pull-to-refresh pour mise à jour en direct
+- Message d'erreur explicite si le chargement échoue (connexion perdue)
 
 ---
 
@@ -219,6 +244,7 @@ Application mobile React Native (Expo) combinant suivi d'entraînement, nutritio
 - **Toasts** : succès, erreur, info — auto-dismiss en haut d'écran
 - **Haptic feedback** : léger (interactions), médium (suppressions), succès/erreur
 - **Pull-to-refresh** sur tous les écrans listes (tint lime `#c8f060`)
+- **Internationalisation** : FR / EN — toutes les chaînes UI passent par i18next, dates localisées (`fr-FR` / `en-US`)
 
 ---
 
@@ -246,10 +272,15 @@ NokkaApp/
 │   │   ├── supabase.ts
 │   │   ├── openFoodFactsService.ts
 │   │   ├── geminiService.ts
-│   │   ├── offlineQueue.ts  # File d'attente offline (AsyncStorage)
+│   │   ├── offlineQueue.ts       # File d'attente offline (AsyncStorage)
+│   │   ├── creatineReminder.ts   # Rappels créatine (interval / heure fixe)
 │   │   └── calorieCalculations.ts
 │   ├── hooks/
 │   │   └── useNetworkSync.ts  # Détection réseau + flush offline queue
+│   ├── i18n/
+│   │   ├── index.ts          # Setup i18next + persistance langue
+│   │   ├── fr.json
+│   │   └── en.json
 │   ├── widgets/
 │   │   ├── NokkaWidget.tsx    # UI du widget Android
 │   │   └── widgetTaskHandler.ts  # Handler système widget

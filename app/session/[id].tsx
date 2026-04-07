@@ -23,6 +23,7 @@ import { Modal } from '@components/ui/Modal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from '@hooks/useToast';
 import { useHaptics } from '@hooks/useHaptics';
+import { useTranslation } from 'react-i18next';
 import type { Exercise, WorkoutSet, ProgressionRecommendation } from '@types/index';
 
 type SessionSection = {
@@ -58,6 +59,7 @@ export default function SessionDetailScreen() {
   const { evaluateAll, resetSessionProgress } = useChallengeStore();
   const toast = useToast();
   const haptics = useHaptics();
+  const { t } = useTranslation();
 
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [exerciseFilter, setExerciseFilter] = useState('');
@@ -68,6 +70,7 @@ export default function SessionDetailScreen() {
   const [showAddSet, setShowAddSet] = useState(false);
   const [note, setNote] = useState('');
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiRecommendations, setAiRecommendations] = useState<ProgressionRecommendation[]>([]);
@@ -213,7 +216,7 @@ export default function SessionDetailScreen() {
       if (autoStartTimer) startRestTimer(180);
       triggerChallengeEval();
     } catch {
-      toast.error('Failed to repeat set.');
+      toast.error(t('session.failed_repeat_set'));
     }
   };
 
@@ -235,8 +238,8 @@ export default function SessionDetailScreen() {
     if (!selectedExercise || !id || !user) return;
     const w = parseFloat(weight);
     const r = parseInt(reps, 10);
-    if (isNaN(w) || w < 0) { toast.error('Enter a valid weight.'); return; }
-    if (isNaN(r) || r <= 0) { toast.error('Enter a valid number of reps.'); return; }
+    if (isNaN(w) || w < 0) { toast.error(t('session.invalid_weight')); return; }
+    if (isNaN(r) || r <= 0) { toast.error(t('session.invalid_reps')); return; }
 
     try {
       await addSetToSession({
@@ -249,7 +252,7 @@ export default function SessionDetailScreen() {
         note: null,
       });
       await haptics.success();
-      toast.success(`Set added: ${w}kg × ${r}`);
+      toast.success(t('session.set_added', { weight: w, reps: r }));
       setWeight('');
       setReps('');
       setRpe('');
@@ -257,12 +260,12 @@ export default function SessionDetailScreen() {
       if (autoStartTimer) startRestTimer(180);
       triggerChallengeEval();
     } catch {
-      toast.error('Failed to add set.');
+      toast.error(t('session.failed_add_set'));
     }
   };
 
   const handleAnalyzeSession = async () => {
-    if (sessionSets.length === 0) { toast.error('Ajoute des séries avant d\'analyser.'); return; }
+    if (sessionSets.length === 0) { toast.error(t('session.no_sets')); return; }
     setShowAIAnalysis(true);
     setAiAnalysis(null);
     setIsAnalyzing(true);
@@ -279,7 +282,7 @@ export default function SessionDetailScreen() {
     // Build previous session summary for the same exercises
     const prevSummaries = sections.map((section) => {
       const prevSets = getLastSessionSetsForExercise(section.exerciseId, id);
-      if (prevSets.length === 0) return `${section.exerciseName}: Pas de données précédentes`;
+      if (prevSets.length === 0) return `${section.exerciseName}: ${t('session.previous_session')}`;
       const setsText = prevSets
         .map((s, i) => `  Série ${i + 1}: ${s.weight}kg × ${s.repetitions} reps${s.rpe ? ` (RPE ${s.rpe})` : ''}`)
         .join('\n');
@@ -308,17 +311,17 @@ Sois direct et motivant, comme un vrai coach.`;
       setAiAnalysis(result);
       await AsyncStorage.setItem(`ai_analysis_${id}`, result);
     } catch {
-      setAiAnalysis('Impossible d\'analyser la séance pour le moment. Vérifie ta connexion et réessaie.');
+      setAiAnalysis(t('session.analysis_error'));
     } finally {
       setIsAnalyzing(false);
     }
   };
 
   const handleDeleteSession = () => {
-    Alert.alert('Delete Session', 'Delete this entire session and all its sets?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('session.delete_session'), t('session.delete_confirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: () => {
           haptics.heavy();
@@ -382,7 +385,7 @@ Sois direct et motivant, comme un vrai coach.`;
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionExerciseName}>{section.exerciseName}</Text>
               <Text style={styles.sectionSetCount}>
-                {section.data.length} série{section.data.length > 1 ? 's' : ''}
+                {section.data.length === 1 ? t('session.set_count_one') : t('session.set_count_other', { count: section.data.length })}
               </Text>
               {ex && (
                 <TouchableOpacity
@@ -418,7 +421,7 @@ Sois direct et motivant, comme un vrai coach.`;
             >
               <Ionicons name="copy-outline" size={13} color="#7a7a90" />
               <Text style={styles.repeatBtnText}>
-                Répéter {lastSet.weight}kg × {lastSet.repetitions}
+                {t('session.repeat_set')} {lastSet.weight}kg × {lastSet.repetitions}
               </Text>
             </TouchableOpacity>
           );
@@ -428,7 +431,7 @@ Sois direct et motivant, comme un vrai coach.`;
             <View style={styles.sessionStats}>
               <View style={styles.stat}>
                 <Text style={styles.statValue}>{sessionSets.length}</Text>
-                <Text style={styles.statLabel}>Sets</Text>
+                <Text style={styles.statLabel}>{t('session.sets')}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.stat}>
@@ -438,7 +441,7 @@ Sois direct et motivant, comme un vrai coach.`;
               <View style={styles.statDivider} />
               <View style={styles.stat}>
                 <Text style={styles.statValue}>{sections.length}</Text>
-                <Text style={styles.statLabel}>Exercices</Text>
+                <Text style={styles.statLabel}>{t('session.exercises_count')}</Text>
               </View>
             </View>
             <View style={styles.headerActions}>
@@ -447,13 +450,16 @@ Sois direct et motivant, comme un vrai coach.`;
                 onPress={() => setShowExercisePicker(true)}
               >
                 <Ionicons name="add" size={18} color="#0f0f12" />
-                <Text style={styles.addExBtnText}>Add Set</Text>
+                <Text style={styles.addExBtnText}>{t('session.add_set')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.iconBtn, autoStartTimer && styles.iconBtnActive]}
                 onPress={() => { toggleAutoStartTimer(); haptics.light(); }}
               >
                 <Ionicons name="timer-outline" size={18} color={autoStartTimer ? '#0f0f12' : '#c8f060'} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => setShowSummary(true)}>
+                <Ionicons name="camera-outline" size={18} color="#c8f060" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteSession}>
                 <Ionicons name="trash-outline" size={18} color="#f06060" />
@@ -465,7 +471,7 @@ Sois direct et motivant, comme un vrai coach.`;
               style={styles.noteInput}
               value={note}
               onChangeText={handleNoteChange}
-              placeholder="Note de séance (ressenti, PR tenté…)"
+              placeholder={t('session.session_note')}
               placeholderTextColor="#3a3a4a"
               multiline
               numberOfLines={2}
@@ -476,7 +482,7 @@ Sois direct et motivant, comme un vrai coach.`;
               <View style={styles.recsCard}>
                 <View style={styles.recsHeader}>
                   <Ionicons name="sparkles" size={14} color="#c8f060" />
-                  <Text style={styles.recsTitle}>Recommandations surcharge progressive</Text>
+                  <Text style={styles.recsTitle}>{t('session.progressive_recs')}</Text>
                   {!isLoadingRecs && (
                     <TouchableOpacity
                       onPress={() => setShowRecs(false)}
@@ -489,7 +495,7 @@ Sois direct et motivant, comme un vrai coach.`;
                 {isLoadingRecs ? (
                   <View style={styles.recsLoading}>
                     <Ionicons name="sparkles" size={16} color="#3a3a4a" />
-                    <Text style={styles.recsLoadingText}>Analyse de tes dernières séances…</Text>
+                    <Text style={styles.recsLoadingText}>{t('session.analyzing')}</Text>
                   </View>
                 ) : (
                   aiRecommendations.map((rec) => (
@@ -546,7 +552,7 @@ Sois direct et motivant, comme un vrai coach.`;
               {aiEnabled && !aiAnalysis && (
                 <TouchableOpacity style={styles.aiBtn} onPress={handleAnalyzeSession}>
                   <Ionicons name="sparkles" size={16} color="#0f0f12" />
-                  <Text style={styles.aiBtnText}>Analyser la séance avec l'IA</Text>
+                  <Text style={styles.aiBtnText}>{t('session.analyze_session')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -707,8 +713,57 @@ Sois direct et motivant, comme un vrai coach.`;
 
           <TouchableOpacity style={styles.addSetBtn} onPress={handleAddSet}>
             <Ionicons name="add-circle" size={20} color="#0f0f12" />
-            <Text style={styles.addSetBtnText}>Add Set</Text>
+            <Text style={styles.addSetBtnText}>{t('session.add_set')}</Text>
           </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {/* Summary Screenshot Modal */}
+      <Modal
+        visible={showSummary}
+        onClose={() => setShowSummary(false)}
+        title={session?.name ?? 'Résumé'}
+        scrollable
+        fullHeight
+      >
+        <View style={styles.summaryContent}>
+          {/* Date + stats */}
+          <View style={styles.summaryStats}>
+            <View style={styles.summaryStat}>
+              <Text style={styles.summaryStatVal}>{sessionSets.length}</Text>
+              <Text style={styles.summaryStatLbl}>séries</Text>
+            </View>
+            <View style={styles.summaryStatDivider} />
+            <View style={styles.summaryStat}>
+              <Text style={styles.summaryStatVal}>{volume.toFixed(0)}</Text>
+              <Text style={styles.summaryStatLbl}>kg total</Text>
+            </View>
+            <View style={styles.summaryStatDivider} />
+            <View style={styles.summaryStat}>
+              <Text style={styles.summaryStatVal}>{sections.length}</Text>
+              <Text style={styles.summaryStatLbl}>exercices</Text>
+            </View>
+          </View>
+
+          {/* Exercises + sets */}
+          {sections.map((section) => (
+            <View key={section.exerciseId} style={styles.summaryExBlock}>
+              <Text style={styles.summaryExName}>{section.exerciseName}</Text>
+              <View style={styles.summarySetsGrid}>
+                {section.data.map((s, i) => (
+                  <View key={s.id} style={styles.summarySetChip}>
+                    <Text style={styles.summarySetNum}>#{i + 1}</Text>
+                    <Text style={styles.summarySetMain}>{s.weight}kg × {s.repetitions}</Text>
+                    {s.rpe ? <Text style={styles.summarySetRpe}>RPE {s.rpe}</Text> : null}
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))}
+
+          {sections.length === 0 && (
+            <Text style={styles.summaryEmpty}>Aucune série enregistrée</Text>
+          )}
         </View>
       </Modal>
 
@@ -952,4 +1007,29 @@ const styles = StyleSheet.create({
   recChipTextHighlight: { color: '#c8f060' },
   recChipSub: { color: '#5a5a70', fontSize: 10 },
   recTip: { color: '#7a7a90', fontSize: 12, fontStyle: 'italic', marginTop: 2 },
+  summaryContent: { gap: 12 },
+  summaryStats: {
+    flexDirection: 'row', backgroundColor: '#0f0f12', borderRadius: 12,
+    padding: 14, borderWidth: 1, borderColor: '#2a2a35', justifyContent: 'space-around',
+    marginBottom: 4,
+  },
+  summaryStat: { alignItems: 'center', gap: 2 },
+  summaryStatVal: { color: '#c8f060', fontSize: 20, fontWeight: '800' },
+  summaryStatLbl: { color: '#7a7a90', fontSize: 11 },
+  summaryStatDivider: { width: 1, backgroundColor: '#2a2a35' },
+  summaryExBlock: {
+    backgroundColor: '#0f0f12', borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: '#2a2a35', gap: 8,
+  },
+  summaryExName: { color: '#c8f060', fontSize: 13, fontWeight: '700' },
+  summarySetsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  summarySetChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#1a1a22', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5,
+    borderWidth: 1, borderColor: '#2a2a35',
+  },
+  summarySetNum: { color: '#3a3a4a', fontSize: 10, width: 18 },
+  summarySetMain: { color: '#f0f0f0', fontSize: 13, fontWeight: '700' },
+  summarySetRpe: { color: '#7a7a90', fontSize: 10, marginLeft: 2 },
+  summaryEmpty: { color: '#5a5a70', fontSize: 14, textAlign: 'center', paddingVertical: 20 },
 });

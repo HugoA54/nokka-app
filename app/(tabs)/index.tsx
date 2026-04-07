@@ -10,6 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@store/authStore';
 import { useWorkoutStore } from '@store/workoutStore';
 import { useMacroAIStore } from '@store/macroAIStore';
@@ -21,15 +22,9 @@ import { saveWidgetData } from '@widgets/widgetTaskHandler';
 import { requestWidgetUpdate } from 'react-native-android-widget';
 import { NokkaWidget } from '@widgets/NokkaWidget';
 
-function greeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-}
-
 export default function DashboardScreen() {
   const router = useRouter();
+  const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const {
     sessions,
@@ -52,6 +47,14 @@ export default function DashboardScreen() {
   } = useMacroAIStore();
   const { todayMealEntries, loadTodayLog } = useNutritionStore();
   const [refreshing, setRefreshing] = React.useState(false);
+
+  const dateLocale = i18n.language === 'fr' ? 'fr-FR' : 'en-US';
+  const h = new Date().getHours();
+  const greetingText = h < 12
+    ? t('dashboard.greeting_morning')
+    : h < 17
+    ? t('dashboard.greeting_afternoon')
+    : t('dashboard.greeting_evening');
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -137,9 +140,9 @@ export default function DashboardScreen() {
           <Text style={styles.offlineBannerText}>
             {!isOnline
               ? pendingCount > 0
-                ? `Hors-ligne — ${pendingCount} série(s) en attente de sync`
-                : 'Hors-ligne — les données seront synchronisées à la reconnexion'
-              : `${pendingCount} série(s) en attente de synchronisation`}
+                ? t('dashboard.offline_with_pending', { count: pendingCount })
+                : t('dashboard.offline_no_pending')
+              : t('dashboard.offline_pending', { count: pendingCount })}
           </Text>
         </View>
       )}
@@ -147,8 +150,8 @@ export default function DashboardScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>{greeting()},</Text>
-          <Text style={styles.username}>{user?.email?.split('@')[0] ?? 'Athlete'}</Text>
+          <Text style={styles.greeting}>{greetingText},</Text>
+          <Text style={styles.username}>{user?.email?.split('@')[0] ?? t('dashboard.athlete_placeholder')}</Text>
         </View>
         <TouchableOpacity
           style={styles.notifBtn}
@@ -161,9 +164,9 @@ export default function DashboardScreen() {
       {/* Stats strip */}
       <View style={styles.statsStrip}>
         {[
-          { label: 'Sessions', value: sessions.length, icon: 'barbell-outline' },
-          { label: 'Streak', value: `${streak}w`, icon: 'flame-outline' },
-          { label: 'Volume', value: `${(totalVolume / 1000).toFixed(1)}t`, icon: 'trending-up-outline' },
+          { label: t('dashboard.stats_sessions'), value: sessions.length, icon: 'barbell-outline' },
+          { label: t('dashboard.stats_streak'), value: `${streak}w`, icon: 'flame-outline' },
+          { label: t('dashboard.stats_volume'), value: `${(totalVolume / 1000).toFixed(1)}t`, icon: 'trending-up-outline' },
         ].map((stat) => (
           <View key={stat.label} style={styles.statItem}>
             <Ionicons name={stat.icon as any} size={18} color="#c8f060" />
@@ -176,9 +179,9 @@ export default function DashboardScreen() {
       {/* Today's workout section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Today's Workout</Text>
+          <Text style={styles.sectionTitle}>{t('dashboard.today_workout')}</Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/workout')}>
-            <Text style={styles.seeAll}>See all</Text>
+            <Text style={styles.seeAll}>{t('dashboard.see_all')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -196,7 +199,7 @@ export default function DashboardScreen() {
               <View style={styles.sessionInfo}>
                 <Text style={styles.sessionName}>{session.name}</Text>
                 <Text style={styles.sessionMeta}>
-                  {sets.filter((s) => s.session_id === session.id).length} sets logged
+                  {sets.filter((s) => s.session_id === session.id).length} {t('dashboard.sets_logged')}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#7a7a90" />
@@ -208,13 +211,13 @@ export default function DashboardScreen() {
             style={styles.emptyWorkout}
           >
             <Ionicons name="barbell-outline" size={32} color="#2a2a35" />
-            <Text style={styles.emptyTitle}>No workout today</Text>
-            <Text style={styles.emptySubtitle}>Ready to crush it?</Text>
+            <Text style={styles.emptyTitle}>{t('dashboard.no_workout_today')}</Text>
+            <Text style={styles.emptySubtitle}>{t('dashboard.ready_to_crush')}</Text>
             <TouchableOpacity
               style={styles.startWorkoutBtn}
               onPress={() => router.push('/(tabs)/workout')}
             >
-              <Text style={styles.startWorkoutText}>Start Session</Text>
+              <Text style={styles.startWorkoutText}>{t('dashboard.start_session')}</Text>
             </TouchableOpacity>
           </LinearGradient>
         )}
@@ -223,9 +226,9 @@ export default function DashboardScreen() {
       {/* Macro Summary */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Nutrition</Text>
+          <Text style={styles.sectionTitle}>{t('dashboard.nutrition')}</Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/macro-ai')}>
-            <Text style={styles.seeAll}>AI Analysis</Text>
+            <Text style={styles.seeAll}>{t('dashboard.ai_analysis')}</Text>
           </TouchableOpacity>
         </View>
         {isLoadingMeals ? (
@@ -244,15 +247,15 @@ export default function DashboardScreen() {
 
       {/* Quick Actions */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text style={styles.sectionTitle}>{t('dashboard.quick_actions')}</Text>
         <View style={styles.quickGrid}>
           {[
-            { label: 'New Session', icon: 'add-circle-outline', route: '/(tabs)/workout' as const, color: '#c8f060' },
-            { label: 'AI Photo', icon: 'camera-outline', route: '/(tabs)/macro-ai' as const, color: '#60d4f0' },
-            { label: 'Nutrition', icon: 'nutrition-outline', route: '/(tabs)/nutrition' as const, color: '#f0c060' },
-            { label: 'Stats', icon: 'stats-chart-outline', route: '/(tabs)/stats' as const, color: '#f060a8' },
-            { label: 'Shopping', icon: 'cart-outline', route: '/shopping-list' as const, color: '#60f090' },
-            { label: 'Leaderboard', icon: 'trophy-outline', route: '/leaderboard' as const, color: '#f0c060' },
+            { label: t('dashboard.new_session_label'), icon: 'add-circle-outline', route: '/(tabs)/workout' as const, color: '#c8f060' },
+            { label: t('dashboard.ai_photo_label'), icon: 'camera-outline', route: '/(tabs)/macro-ai' as const, color: '#60d4f0' },
+            { label: t('dashboard.nutrition_label'), icon: 'nutrition-outline', route: '/(tabs)/nutrition' as const, color: '#f0c060' },
+            { label: t('dashboard.stats_label'), icon: 'stats-chart-outline', route: '/(tabs)/stats' as const, color: '#f060a8' },
+            { label: t('dashboard.shopping_label'), icon: 'cart-outline', route: '/shopping-list' as const, color: '#60f090' },
+            { label: t('dashboard.leaderboard_label'), icon: 'trophy-outline', route: '/leaderboard' as const, color: '#f0c060' },
           ].map((action) => (
             <TouchableOpacity
               key={action.label}
@@ -272,7 +275,7 @@ export default function DashboardScreen() {
       {/* Recent Sessions */}
       {recentSessions.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Sessions</Text>
+          <Text style={styles.sectionTitle}>{t('dashboard.recent_sessions')}</Text>
           {isLoadingSessions ? (
             <>
               <SessionCardSkeleton />
@@ -288,10 +291,10 @@ export default function DashboardScreen() {
               >
                 <View style={styles.recentLeft}>
                   <Text style={styles.recentName}>{session.name}</Text>
-                  <Text style={styles.recentDate}>{new Date(session.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</Text>
+                  <Text style={styles.recentDate}>{new Date(session.date).toLocaleDateString(dateLocale, { weekday: 'short', month: 'short', day: 'numeric' })}</Text>
                 </View>
                 <View style={styles.recentRight}>
-                  <Text style={styles.recentSets}>{sets.filter((s) => s.session_id === session.id).length} sets</Text>
+                  <Text style={styles.recentSets}>{sets.filter((s) => s.session_id === session.id).length} {t('dashboard.sets_count')}</Text>
                   <Ionicons name="chevron-forward" size={16} color="#7a7a90" />
                 </View>
               </TouchableOpacity>

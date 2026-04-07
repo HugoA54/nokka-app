@@ -1,14 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { hasCreatineToday, markCreatineTaken, scheduleCreatineReminders } from '@services/creatineReminder';
+import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from 'expo-router';
+import { hasCreatineToday, markCreatineTaken, scheduleCreatineReminders, getCreatineSettings } from '@services/creatineReminder';
 
 export function CreatineCard() {
+  const { t } = useTranslation();
   const [taken, setTaken] = useState<boolean | null>(null);
+  const [subtitle, setSubtitle] = useState('');
+  const [enabled, setEnabled] = useState(true);
 
-  useEffect(() => {
-    hasCreatineToday().then(setTaken);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      hasCreatineToday().then(setTaken);
+      getCreatineSettings().then((s) => {
+        setEnabled(s.enabled);
+        if (!s.enabled) { setSubtitle(t('creatine_card.reminders_disabled')); return; }
+        if (s.mode === 'fixed') setSubtitle(t('profile.creatine_fixed', { hour: s.fixedHour }));
+        else setSubtitle(t('profile.creatine_interval', { hours: s.intervalHours }));
+      });
+    }, [t])
+  );
 
   const handleTake = async () => {
     await markCreatineTaken();
@@ -24,7 +37,7 @@ export function CreatineCard() {
     await scheduleCreatineReminders();
   };
 
-  if (taken === null) return null;
+  if (taken === null || !enabled) return null;
 
   return (
     <View style={[styles.card, taken && styles.cardTaken]}>
@@ -36,18 +49,18 @@ export function CreatineCard() {
         />
       </View>
       <View style={styles.info}>
-        <Text style={styles.title}>Créatine</Text>
+        <Text style={styles.title}>{t('creatine_card.title')}</Text>
         <Text style={styles.subtitle}>
-          {taken ? 'Prise aujourd\'hui ✓' : 'Rappel toutes les heures'}
+          {taken ? t('creatine_card.taken_today') : subtitle}
         </Text>
       </View>
       {taken ? (
         <TouchableOpacity onPress={handleUndo} style={styles.undoBtn}>
-          <Text style={styles.undoText}>Annuler</Text>
+          <Text style={styles.undoText}>{t('creatine_card.undo')}</Text>
         </TouchableOpacity>
       ) : (
         <TouchableOpacity onPress={handleTake} style={styles.takeBtn}>
-          <Text style={styles.takeBtnText}>Pris ✓</Text>
+          <Text style={styles.takeBtnText}>{t('creatine_card.taken_button')}</Text>
         </TouchableOpacity>
       )}
     </View>

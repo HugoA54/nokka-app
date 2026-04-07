@@ -10,34 +10,47 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@store/authStore';
 import { useWorkoutStore } from '@store/workoutStore';
 import { useToast } from '@hooks/useToast';
 import { useHaptics } from '@hooks/useHaptics';
 import { calculateDailyMetrics } from '@services/calorieCalculations';
 import { geminiService } from '@services/geminiService';
+import { getCreatineSettings, saveCreatineSettings, type CreatineMode, type CreatineSettings } from '@services/creatineReminder';
 import type { ActivityLevel, FitnessGoal, Gender, UserProfile } from '@types/index';
+import { setStoredLanguage, supportedLanguages } from '../../src/i18n';
 
-const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string; description: string }[] = [
-  { value: 'sedentary', label: 'Sedentary', description: 'Little or no exercise' },
-  { value: 'light', label: 'Light', description: '1-3 days/week' },
-  { value: 'moderate', label: 'Moderate', description: '3-5 days/week' },
-  { value: 'active', label: 'Active', description: '6-7 days/week' },
-  { value: 'very_active', label: 'Very Active', description: 'Intense daily exercise' },
+const INTERVAL_OPTIONS = [
+  { value: 1, label: '1h' },
+  { value: 2, label: '2h' },
+  { value: 3, label: '3h' },
+  { value: 4, label: '4h' },
 ];
 
-const GOAL_OPTIONS: { value: FitnessGoal; label: string; description: string; color: string }[] = [
-  { value: 'cut', label: 'Cut', description: 'Lose fat (-15% calories)', color: '#f060a8' },
-  { value: 'maintain', label: 'Maintain', description: 'Stay the same', color: '#60d4f0' },
-  { value: 'bulk', label: 'Bulk', description: 'Gain muscle (+10% calories)', color: '#c8f060' },
-];
+const FIXED_HOUR_OPTIONS = [7, 8, 9, 10, 12, 14, 18, 20];
 
 export default function ProfileScreen() {
+  const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const { signOut } = useAuthStore();
   const { userProfile, loadUserProfile, updateUserProfile, sessions, sets, exercises } = useWorkoutStore();
   const toast = useToast();
   const haptics = useHaptics();
+
+  const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string; description: string }[] = [
+    { value: 'sedentary', label: t('profile.sedentary'), description: t('profile.little_exercise') },
+    { value: 'light', label: t('profile.light'), description: t('profile.light_days') },
+    { value: 'moderate', label: t('profile.moderate'), description: t('profile.moderate_days') },
+    { value: 'active', label: t('profile.active'), description: t('profile.active_days') },
+    { value: 'very_active', label: t('profile.very_active'), description: t('profile.intense_daily') },
+  ];
+
+  const GOAL_OPTIONS: { value: FitnessGoal; label: string; description: string; color: string }[] = [
+    { value: 'cut', label: t('profile.cut'), description: t('profile.cut_desc'), color: '#f060a8' },
+    { value: 'maintain', label: t('profile.maintain'), description: t('profile.maintain_desc'), color: '#60d4f0' },
+    { value: 'bulk', label: t('profile.bulk'), description: t('profile.bulk_desc'), color: '#c8f060' },
+  ];
 
   const [editing, setEditing] = useState(false);
   const [weight, setWeight] = useState('75');
@@ -52,6 +65,10 @@ export default function ProfileScreen() {
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiKeyVisible, setAiKeyVisible] = useState(false);
+  const [creatineEnabled, setCreatineEnabled] = useState(true);
+  const [creatineMode, setCreatineMode] = useState<CreatineMode>('interval');
+  const [creatineInterval, setCreatineInterval] = useState(1);
+  const [creatineFixedHour, setCreatineFixedHour] = useState(9);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -61,6 +78,12 @@ export default function ProfileScreen() {
     const key = await geminiService.getApiKey();
     setAiEnabled(enabled);
     setAiApiKey(key);
+    // Load creatine settings
+    const cs = await getCreatineSettings();
+    setCreatineEnabled(cs.enabled);
+    setCreatineMode(cs.mode);
+    setCreatineInterval(cs.intervalHours);
+    setCreatineFixedHour(cs.fixedHour);
   }, [user?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -94,10 +117,10 @@ export default function ProfileScreen() {
       };
       await updateUserProfile(patch);
       await haptics.success();
-      toast.success('Profile updated!');
+      toast.success(t('profile.profile_updated'));
       setEditing(false);
     } catch {
-      toast.error('Failed to update profile.');
+      toast.error(t('common.error'));
     } finally {
       setIsSaving(false);
     }
@@ -112,14 +135,29 @@ export default function ProfileScreen() {
   const handleSaveApiKey = async () => {
     await geminiService.setApiKey(aiApiKey);
     await haptics.success();
-    toast.success('Clé API sauvegardée !');
+    toast.success(t('profile.api_key_saved'));
+  };
+
+  const saveCreatine = async (patch: Partial<CreatineSettings>) => {
+    const updated: CreatineSettings = {
+      enabled: patch.enabled ?? creatineEnabled,
+      mode: patch.mode ?? creatineMode,
+      fixedHour: patch.fixedHour ?? creatineFixedHour,
+      intervalHours: patch.intervalHours ?? creatineInterval,
+    };
+    if (patch.enabled !== undefined) setCreatineEnabled(patch.enabled);
+    if (patch.mode !== undefined) setCreatineMode(patch.mode);
+    if (patch.fixedHour !== undefined) setCreatineFixedHour(patch.fixedHour);
+    if (patch.intervalHours !== undefined) setCreatineInterval(patch.intervalHours);
+    await saveCreatineSettings(updated);
+    await haptics.light();
   };
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('profile.sign_out'), t('profile.sign_out') + ' ?', [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Sign Out',
+        text: t('profile.sign_out'),
         style: 'destructive',
         onPress: async () => {
           await haptics.medium();
@@ -127,6 +165,11 @@ export default function ProfileScreen() {
         },
       },
     ]);
+  };
+
+  const handleLanguageChange = async (lang: string) => {
+    await setStoredLanguage(lang);
+    await haptics.light();
   };
 
   // Compute current metrics
@@ -160,7 +203,7 @@ export default function ProfileScreen() {
           </Text>
         </View>
         <View>
-          <Text style={styles.name}>{user?.email?.split('@')[0] ?? 'Athlete'}</Text>
+          <Text style={styles.name}>{user?.email?.split('@')[0] ?? t('dashboard.athlete_placeholder')}</Text>
           <Text style={styles.email}>{user?.email}</Text>
         </View>
         <TouchableOpacity
@@ -174,15 +217,15 @@ export default function ProfileScreen() {
       {/* Calculated Metrics */}
       {metrics && (
         <View style={styles.metricsCard}>
-          <Text style={styles.cardTitle}>Daily Metrics</Text>
+          <Text style={styles.cardTitle}>{t('profile.daily_metrics')}</Text>
           <View style={styles.metricsGrid}>
             {[
-              { label: 'BMR', value: `${Math.round(metrics.bmr)} kcal`, icon: 'body-outline' },
-              { label: 'TDEE', value: `${Math.round(metrics.tdee)} kcal`, icon: 'flame-outline' },
-              { label: 'Daily Goal', value: `${Math.round(metrics.dailyGoal)} kcal`, icon: 'trophy-outline' },
-              { label: 'Protein', value: `${metrics.macros.protein}g`, icon: 'nutrition-outline' },
-              { label: 'Carbs', value: `${metrics.macros.carbs}g`, icon: 'leaf-outline' },
-              { label: 'Fats', value: `${metrics.macros.fats}g`, icon: 'water-outline' },
+              { label: t('profile.bmr'), value: `${Math.round(metrics.bmr)} kcal`, icon: 'body-outline' },
+              { label: t('profile.tdee'), value: `${Math.round(metrics.tdee)} kcal`, icon: 'flame-outline' },
+              { label: t('profile.daily_goal'), value: `${Math.round(metrics.dailyGoal)} kcal`, icon: 'trophy-outline' },
+              { label: t('profile.protein'), value: `${metrics.macros.protein}g`, icon: 'nutrition-outline' },
+              { label: t('profile.carbs'), value: `${metrics.macros.carbs}g`, icon: 'leaf-outline' },
+              { label: t('profile.fats'), value: `${metrics.macros.fats}g`, icon: 'water-outline' },
             ].map((m) => (
               <View key={m.label} style={styles.metricItem}>
                 <Ionicons name={m.icon as any} size={16} color="#c8f060" />
@@ -196,12 +239,12 @@ export default function ProfileScreen() {
 
       {/* Body Measurements */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Body Measurements</Text>
+        <Text style={styles.cardTitle}>{t('profile.body_measurements')}</Text>
         <View style={styles.fieldRow}>
           {[
-            { label: 'Weight (kg)', value: weight, onChange: setWeight },
-            { label: 'Height (cm)', value: height, onChange: setHeight },
-            { label: 'Age', value: age, onChange: setAge },
+            { label: t('profile.weight_kg'), value: weight, onChange: setWeight },
+            { label: t('profile.height_cm'), value: height, onChange: setHeight },
+            { label: t('profile.age'), value: age, onChange: setAge },
           ].map(({ label, value, onChange }) => (
             <View key={label} style={styles.fieldItem}>
               <Text style={styles.fieldLabel}>{label}</Text>
@@ -235,7 +278,7 @@ export default function ProfileScreen() {
                 color={gender === g ? '#0f0f12' : '#7a7a90'}
               />
               <Text style={[styles.genderText, gender === g && styles.genderTextActive]}>
-                {g.charAt(0).toUpperCase() + g.slice(1)}
+                {g === 'male' ? t('profile.male') : t('profile.female')}
               </Text>
             </TouchableOpacity>
           ))}
@@ -244,7 +287,7 @@ export default function ProfileScreen() {
 
       {/* Activity Level */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Activity Level</Text>
+        <Text style={styles.cardTitle}>{t('profile.activity_level')}</Text>
         <View style={styles.optionsList}>
           {ACTIVITY_OPTIONS.map((opt) => (
             <TouchableOpacity
@@ -269,7 +312,7 @@ export default function ProfileScreen() {
 
       {/* Fitness Goal */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Fitness Goal</Text>
+        <Text style={styles.cardTitle}>{t('profile.fitness_goal')}</Text>
         <View style={styles.goalGrid}>
           {GOAL_OPTIONS.map((opt) => (
             <TouchableOpacity
@@ -294,8 +337,8 @@ export default function ProfileScreen() {
       <View style={styles.card}>
         <View style={styles.calcRow}>
           <View style={styles.calcInfo}>
-            <Text style={styles.calcTitle}>Auto Calculation</Text>
-            <Text style={styles.calcDesc}>Calculate goal from BMR + TDEE + workout calories</Text>
+            <Text style={styles.calcTitle}>{t('profile.auto_calculation')}</Text>
+            <Text style={styles.calcDesc}>{t('profile.calculate_from_metrics')}</Text>
           </View>
           <Switch
             value={useAutoCalc}
@@ -307,7 +350,7 @@ export default function ProfileScreen() {
         </View>
         {!useAutoCalc && (
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Manual Calorie Goal (kcal)</Text>
+            <Text style={styles.fieldLabel}>{t('profile.manual_calorie_goal')}</Text>
             <TextInput
               style={styles.manualInput}
               value={manualGoal}
@@ -325,8 +368,8 @@ export default function ProfileScreen() {
       <View style={styles.card}>
         <View style={styles.calcRow}>
           <View style={styles.calcInfo}>
-            <Text style={styles.calcTitle}>Fonctionnalités IA</Text>
-            <Text style={styles.calcDesc}>Analyse repas, surcharge progressive, analyse de séance</Text>
+            <Text style={styles.calcTitle}>{t('profile.ai_features')}</Text>
+            <Text style={styles.calcDesc}>{t('profile.ai_meal_analysis')}</Text>
           </View>
           <Switch
             value={aiEnabled}
@@ -337,10 +380,8 @@ export default function ProfileScreen() {
         </View>
         {aiEnabled && (
           <View style={styles.aiKeySection}>
-            <Text style={styles.fieldLabel}>Clé API Gemini</Text>
-            <Text style={styles.aiKeyHint}>
-              Obtiens ta clé gratuite sur Google AI Studio → Get API Key
-            </Text>
+            <Text style={styles.fieldLabel}>{t('profile.gemini_api_key')}</Text>
+            <Text style={styles.aiKeyHint}>{t('profile.api_key_hint')}</Text>
             <View style={styles.aiKeyRow}>
               <TextInput
                 style={styles.aiKeyInput}
@@ -365,8 +406,90 @@ export default function ProfileScreen() {
             </View>
             <TouchableOpacity style={styles.aiKeySaveBtn} onPress={handleSaveApiKey}>
               <Ionicons name="checkmark-circle-outline" size={16} color="#0f0f12" />
-              <Text style={styles.aiKeySaveBtnText}>Sauvegarder la clé</Text>
+              <Text style={styles.aiKeySaveBtnText}>{t('profile.save_key')}</Text>
             </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {/* Creatine Reminder */}
+      <View style={styles.card}>
+        <View style={styles.calcRow}>
+          <View style={styles.calcInfo}>
+            <Text style={styles.calcTitle}>{t('profile.creatine_reminder')}</Text>
+            <Text style={styles.calcDesc}>
+              {creatineEnabled
+                ? creatineMode === 'fixed'
+                  ? t('profile.creatine_fixed', { hour: creatineFixedHour })
+                  : t('profile.creatine_interval', { hours: creatineInterval })
+                : t('profile.creatine_disabled')}
+            </Text>
+          </View>
+          <Switch
+            value={creatineEnabled}
+            onValueChange={(v) => saveCreatine({ enabled: v })}
+            trackColor={{ false: '#2a2a35', true: '#60d4f0' }}
+            thumbColor={creatineEnabled ? '#0f0f12' : '#7a7a90'}
+          />
+        </View>
+        {creatineEnabled && (
+          <View style={styles.creatineSettings}>
+            {/* Mode toggle */}
+            <View style={styles.creatineModeRow}>
+              {([
+                { value: 'interval' as CreatineMode, label: t('profile.creatine_interval_mode'), icon: 'repeat-outline' },
+                { value: 'fixed' as CreatineMode, label: t('profile.creatine_fixed_mode'), icon: 'alarm-outline' },
+              ]).map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.creatineModeBtn, creatineMode === opt.value && styles.creatineModeBtnActive]}
+                  onPress={() => saveCreatine({ mode: opt.value })}
+                >
+                  <Ionicons
+                    name={opt.icon as any}
+                    size={14}
+                    color={creatineMode === opt.value ? '#0f0f12' : '#7a7a90'}
+                  />
+                  <Text style={[styles.creatineModeText, creatineMode === opt.value && styles.creatineModeTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Interval options */}
+            {creatineMode === 'interval' && (
+              <View style={styles.creatineChipRow}>
+                {INTERVAL_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[styles.creatineChip, creatineInterval === opt.value && styles.creatineChipActive]}
+                    onPress={() => saveCreatine({ intervalHours: opt.value })}
+                  >
+                    <Text style={[styles.creatineChipText, creatineInterval === opt.value && styles.creatineChipTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Fixed hour options */}
+            {creatineMode === 'fixed' && (
+              <View style={styles.creatineChipRow}>
+                {FIXED_HOUR_OPTIONS.map((h) => (
+                  <TouchableOpacity
+                    key={h}
+                    style={[styles.creatineChip, creatineFixedHour === h && styles.creatineChipActive]}
+                    onPress={() => saveCreatine({ fixedHour: h })}
+                  >
+                    <Text style={[styles.creatineChipText, creatineFixedHour === h && styles.creatineChipTextActive]}>
+                      {h}h
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -378,16 +501,34 @@ export default function ProfileScreen() {
           onPress={handleSave}
           disabled={isSaving}
         >
-          <Text style={styles.saveBtnText}>{isSaving ? 'Saving…' : 'Save Profile'}</Text>
+          <Text style={styles.saveBtnText}>{isSaving ? t('profile.saving') : t('profile.save_profile')}</Text>
         </TouchableOpacity>
       )}
 
+      {/* Language Selector */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t('profile.language')}</Text>
+        <View style={styles.genderRow}>
+          {supportedLanguages.map((lang) => (
+            <TouchableOpacity
+              key={lang.code}
+              style={[styles.genderBtn, i18n.language === lang.code && styles.genderBtnActive]}
+              onPress={() => handleLanguageChange(lang.code)}
+            >
+              <Text style={[styles.genderText, i18n.language === lang.code && styles.genderTextActive]}>
+                {lang.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       {/* Account Section */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Account</Text>
+        <Text style={styles.cardTitle}>{t('profile.account')}</Text>
         <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
           <Ionicons name="log-out-outline" size={18} color="#f06060" />
-          <Text style={styles.signOutText}>Sign Out</Text>
+          <Text style={styles.signOutText}>{t('profile.sign_out')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -486,6 +627,24 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { color: '#0f0f12', fontSize: 17, fontWeight: '700' },
+  creatineSettings: { gap: 12 },
+  creatineModeRow: { flexDirection: 'row', gap: 8 },
+  creatineModeBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, backgroundColor: '#0f0f12', borderRadius: 10, paddingVertical: 10,
+    borderWidth: 1, borderColor: '#2a2a35',
+  },
+  creatineModeBtnActive: { backgroundColor: '#60d4f0', borderColor: '#60d4f0' },
+  creatineModeText: { color: '#7a7a90', fontSize: 13, fontWeight: '600' },
+  creatineModeTextActive: { color: '#0f0f12' },
+  creatineChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  creatineChip: {
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10,
+    backgroundColor: '#0f0f12', borderWidth: 1, borderColor: '#2a2a35',
+  },
+  creatineChipActive: { backgroundColor: '#60d4f0', borderColor: '#60d4f0' },
+  creatineChipText: { color: '#7a7a90', fontSize: 14, fontWeight: '700' },
+  creatineChipTextActive: { color: '#0f0f12' },
   aiKeySection: { gap: 10 },
   aiKeyHint: { color: '#7a7a90', fontSize: 11, fontStyle: 'italic' },
   aiKeyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

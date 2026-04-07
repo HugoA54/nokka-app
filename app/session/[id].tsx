@@ -146,10 +146,13 @@ export default function SessionDetailScreen() {
     const exercisesData = currentSections.map((section) => {
       const prevSets = getLastSessionSetsForExercise(section.exerciseId, id);
       if (prevSets.length === 0) return null;
+      const prevSessionId = prevSets[0]?.session_id;
+      const prevSession = sessions.find((s) => String(s.id) === String(prevSessionId));
+      const prevSessionNote = prevSession?.note ? `\nNote de séance: "${prevSession.note}"` : '';
       const setsText = prevSets
-        .map((s, i) => `  Série ${i + 1}: ${s.weight}kg × ${s.repetitions} reps${s.rpe ? ` (RPE ${s.rpe})` : ''}`)
+        .map((s, i) => `  Série ${i + 1}: ${s.weight}kg × ${s.repetitions} reps${s.rpe ? ` (RPE ${s.rpe})` : ''}${s.note ? ` — Note: "${s.note}"` : ''}`)
         .join('\n');
-      return `Exercice: ${section.exerciseName}\nID: ${section.exerciseId}\nDernière séance:\n${setsText}`;
+      return `Exercice: ${section.exerciseName}\nID: ${section.exerciseId}\nDernière séance:${prevSessionNote}\n${setsText}`;
     }).filter(Boolean).join('\n\n');
 
     if (!exercisesData) { setIsLoadingRecs(false); return; }
@@ -283,18 +286,22 @@ export default function SessionDetailScreen() {
     const prevSummaries = sections.map((section) => {
       const prevSets = getLastSessionSetsForExercise(section.exerciseId, id);
       if (prevSets.length === 0) return `${section.exerciseName}: ${t('session.previous_session')}`;
+      const prevSessionId = prevSets[0]?.session_id;
+      const prevSession = sessions.find((s) => String(s.id) === String(prevSessionId));
+      const prevSessionNote = prevSession?.note ? `\n  Note de séance: "${prevSession.note}"` : '';
       const setsText = prevSets
-        .map((s, i) => `  Série ${i + 1}: ${s.weight}kg × ${s.repetitions} reps${s.rpe ? ` (RPE ${s.rpe})` : ''}`)
+        .map((s, i) => `  Série ${i + 1}: ${s.weight}kg × ${s.repetitions} reps${s.rpe ? ` (RPE ${s.rpe})` : ''}${s.note ? ` — Note: "${s.note}"` : ''}`)
         .join('\n');
-      return `${section.exerciseName}:\n${setsText}`;
+      return `${section.exerciseName}:${prevSessionNote}\n${setsText}`;
     }).join('\n\n');
 
     const totalVolume = sessionSets.reduce((sum, s) => sum + s.weight * s.repetitions, 0);
+    const sessionNoteText = note?.trim() ? `\nNote du sportif: "${note}"` : '';
 
     const prompt = `Tu es un coach sportif expert en musculation. Analyse cette séance d'entraînement et compare-la à la précédente.
 
 SÉANCE ACTUELLE (${session?.name ?? 'Séance'}) :
-Volume total : ${totalVolume.toFixed(0)}kg
+Volume total : ${totalVolume.toFixed(0)}kg${sessionNoteText}
 ${exerciseSummaries}
 
 SÉANCE PRÉCÉDENTE (mêmes exercices) :

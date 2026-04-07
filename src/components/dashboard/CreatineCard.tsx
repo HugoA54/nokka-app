@@ -1,9 +1,9 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from 'expo-router';
-import { hasCreatineToday, markCreatineTaken, scheduleCreatineReminders, getCreatineSettings } from '@services/creatineReminder';
+import { hasCreatineToday, markCreatineTaken, scheduleCreatineReminders, getCreatineSettings, saveCreatineSettings } from '@services/creatineReminder';
 
 export function CreatineCard() {
   const { t } = useTranslation();
@@ -37,10 +37,38 @@ export function CreatineCard() {
     await scheduleCreatineReminders();
   };
 
+  const handleDisable = () => {
+    Alert.alert(
+      t('creatine_card.disable_confirm_title'),
+      t('creatine_card.disable_confirm_msg'),
+      [
+        { text: t('creatine_card.disable_confirm_no'), style: 'cancel' },
+        {
+          text: t('creatine_card.disable_confirm_yes'),
+          style: 'destructive',
+          onPress: async () => {
+            const current = await getCreatineSettings();
+            await saveCreatineSettings({ ...current, enabled: false });
+            setEnabled(false);
+          },
+        },
+      ]
+    );
+  };
+
   if (taken === null || !enabled) return null;
 
   return (
     <View style={[styles.card, taken && styles.cardTaken]}>
+      {!taken && (
+        <TouchableOpacity
+          style={styles.dismissBtn}
+          onPress={handleDisable}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="close" size={14} color="#3a3a4a" />
+        </TouchableOpacity>
+      )}
       <View style={[styles.iconWrap, taken && styles.iconWrapTaken]}>
         <Ionicons
           name={taken ? 'checkmark-circle' : 'water'}
@@ -77,6 +105,16 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderColor: '#1a3040',
+  },
+  dismissBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
   cardTaken: {
     borderColor: '#1a3a1a',

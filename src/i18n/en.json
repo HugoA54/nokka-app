@@ -326,6 +326,10 @@
     "taken_today": "Taken today ✓",
     "taken_button": "Taken ✓",
     "undo": "Undo",
-    "reminders_disabled": "Reminders disabled"
+    "reminders_disabled": "Reminders disabled",
+    "disable_confirm_title": "Disable creatine reminder?",
+    "disable_confirm_msg": "The card and notifications will be hidden. You can re-enable them in Profile.",
+    "disable_confirm_yes": "Disable",
+    "disable_confirm_no": "Cancel"
   }
 }

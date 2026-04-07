@@ -326,6 +326,10 @@
     "taken_today": "Prise aujourd'hui ✓",
     "taken_button": "Pris ✓",
     "undo": "Annuler",
-    "reminders_disabled": "Rappels désactivés"
+    "reminders_disabled": "Rappels désactivés",
+    "disable_confirm_title": "Désactiver le rappel créatine ?",
+    "disable_confirm_msg": "La carte et les notifications seront masquées. Tu peux les réactiver dans le Profil.",
+    "disable_confirm_yes": "Désactiver",
+    "disable_confirm_no": "Annuler"
   }
 }

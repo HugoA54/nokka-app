@@ -218,7 +218,10 @@
     "set_count_one": "set",
     "set_count_other": "sets",
     "previous_session": "No previous data",
-    "analysis_error": "Unable to analyze session. Check your connection and try again."
+    "analysis_error": "Unable to analyze session. Check your connection and try again.",
+    "save_as_template": "Save as Template",
+    "save_as_template_hint": "Exercises and default weights will be copied from this session.",
+    "template_saved": "Template saved!"
   },
   "exercise": {
     "title": "Exercise Detail",

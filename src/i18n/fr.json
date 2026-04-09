@@ -218,7 +218,10 @@
     "set_count_one": "série",
     "set_count_other": "séries",
     "previous_session": "Pas de données précédentes",
-    "analysis_error": "Impossible d'analyser la séance. Vérifie ta connexion et réessaie."
+    "analysis_error": "Impossible d'analyser la séance. Vérifie ta connexion et réessaie.",
+    "save_as_template": "Sauvegarder comme modèle",
+    "save_as_template_hint": "Les exercices et poids par défaut seront copiés depuis cette séance.",
+    "template_saved": "Modèle sauvegardé !"
   },
   "exercise": {
     "title": "Détail de l'exercice",

@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useWorkoutStore } from '@store/workoutStore';
 import { useAuthStore } from '@store/authStore';
 import { useChallengeStore } from '@store/challengeStore';
+import { useTemplateStore } from '@store/templateStore';
 import { geminiService } from '@services/geminiService';
 import { SetCard } from '@components/workout/SetCard';
 import { ExerciseCard } from '@components/workout/ExerciseCard';
@@ -72,6 +73,9 @@ export default function SessionDetailScreen() {
   const [note, setNote] = useState('');
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [saveTemplateName, setSaveTemplateName] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiRecommendations, setAiRecommendations] = useState<ProgressionRecommendation[]>([]);
@@ -328,6 +332,35 @@ Sois direct, factuel, cite des chiffres. Pas de blabla.`;
     }
   };
 
+  const handleSaveAsTemplate = async () => {
+    if (!user || !saveTemplateName.trim()) return;
+    setSavingTemplate(true);
+    try {
+      const { createTemplate, updateTemplate } = useTemplateStore.getState();
+      const tmpl = await createTemplate(user.id, saveTemplateName.trim());
+      const exercises = sections.map((section, i) => {
+        const realSets = section.data.filter((s) => s.weight > 0 || s.repetitions > 0);
+        const lastSet = realSets.at(-1);
+        return {
+          exercise_id: section.exerciseId,
+          exercise_name: section.exerciseName,
+          order_index: i,
+          default_sets: realSets.length || 3,
+          default_reps: lastSet?.repetitions ?? 10,
+          default_weight: lastSet?.weight ?? 0,
+        };
+      });
+      await updateTemplate(tmpl.id, saveTemplateName.trim(), null, exercises);
+      setShowSaveTemplate(false);
+      setSaveTemplateName('');
+      toast.success(t('session.template_saved'));
+    } catch {
+      toast.error(t('templates.failed_save'));
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
   const handleDeleteSession = () => {
     Alert.alert(t('session.delete_session'), t('session.delete_confirm'), [
       { text: t('common.cancel'), style: 'cancel' },
@@ -497,6 +530,15 @@ Sois direct, factuel, cite des chiffres. Pas de blabla.`;
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn} onPress={() => setShowSummary(true)}>
                 <Ionicons name="camera-outline" size={18} color="#c8f060" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={() => {
+                  setSaveTemplateName(session?.name ?? '');
+                  setShowSaveTemplate(true);
+                }}
+              >
+                <Ionicons name="bookmark-outline" size={18} color="#c8f060" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteSession}>
                 <Ionicons name="trash-outline" size={18} color="#f06060" />
@@ -770,6 +812,48 @@ Sois direct, factuel, cite des chiffres. Pas de blabla.`;
         </View>
       </Modal>
 
+      {/* Save as Template Modal */}
+      <Modal
+        visible={showSaveTemplate}
+        onClose={() => setShowSaveTemplate(false)}
+        title={t('session.save_as_template')}
+      >
+        <View style={styles.saveTemplateContent}>
+          <Text style={styles.saveTemplateHint}>{t('session.save_as_template_hint')}</Text>
+          <TextInput
+            style={styles.saveTemplateInput}
+            value={saveTemplateName}
+            onChangeText={setSaveTemplateName}
+            placeholder={t('templates.name_placeholder')}
+            placeholderTextColor="#3a3a4a"
+            autoFocus
+            returnKeyType="done"
+            onSubmitEditing={handleSaveAsTemplate}
+          />
+          {sections.length > 0 && (
+            <View style={styles.saveTemplateExList}>
+              {sections.map((s) => (
+                <View key={s.exerciseId} style={styles.saveTemplateExRow}>
+                  <Ionicons name="barbell-outline" size={12} color="#7a7a90" />
+                  <Text style={styles.saveTemplateExName}>{s.exerciseName}</Text>
+                  <Text style={styles.saveTemplateExMeta}>
+                    {s.data.filter((x) => x.weight > 0 || x.repetitions > 0).length} {t('workout.sets')}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+          <TouchableOpacity
+            style={[styles.saveTemplateBtn, savingTemplate && { opacity: 0.6 }]}
+            onPress={handleSaveAsTemplate}
+            disabled={savingTemplate}
+          >
+            <Ionicons name="bookmark" size={16} color="#0f0f12" />
+            <Text style={styles.saveTemplateBtnText}>{t('templates.save')}</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
       {/* AI Analysis Modal */}
       <Modal
         visible={showAIAnalysis}
@@ -1030,4 +1114,24 @@ const styles = StyleSheet.create({
   summarySetMain: { color: '#f0f0f0', fontSize: 13, fontWeight: '700' },
   summarySetRpe: { color: '#7a7a90', fontSize: 10, marginLeft: 2 },
   summaryEmpty: { color: '#5a5a70', fontSize: 14, textAlign: 'center', paddingVertical: 20 },
+  // Save as Template
+  saveTemplateContent: { gap: 14 },
+  saveTemplateHint: { color: '#7a7a90', fontSize: 13 },
+  saveTemplateInput: {
+    backgroundColor: '#0f0f12', borderRadius: 12, borderWidth: 1,
+    borderColor: '#2a2a35', paddingHorizontal: 14, paddingVertical: 12,
+    color: '#f0f0f0', fontSize: 16,
+  },
+  saveTemplateExList: {
+    backgroundColor: '#0f0f12', borderRadius: 10, borderWidth: 1,
+    borderColor: '#2a2a35', padding: 10, gap: 6,
+  },
+  saveTemplateExRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  saveTemplateExName: { flex: 1, color: '#c0c0d0', fontSize: 13 },
+  saveTemplateExMeta: { color: '#5a5a70', fontSize: 12 },
+  saveTemplateBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, backgroundColor: '#c8f060', borderRadius: 12, paddingVertical: 14,
+  },
+  saveTemplateBtnText: { color: '#0f0f12', fontSize: 15, fontWeight: '700' },
 });

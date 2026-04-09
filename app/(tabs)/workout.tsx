@@ -16,6 +16,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@store/authStore';
 import { useWorkoutStore } from '@store/workoutStore';
+import { useTemplateStore } from '@store/templateStore';
 import { useChallengeStore } from '@store/challengeStore';
 import { ExerciseCard } from '@components/workout/ExerciseCard';
 import { RestTimer } from '@components/workout/RestTimer';
@@ -37,10 +38,10 @@ export default function WorkoutScreen() {
     loadSessions,
     loadExercises,
     createNewSession,
-    createSessionFromTemplate,
     deleteSession,
     resumeRestTimer,
   } = useWorkoutStore();
+  const { templates, fetchTemplates, instantiateSessionFromTemplate } = useTemplateStore();
   const { evaluateAll } = useChallengeStore();
   const haptics = useHaptics();
   const toast = useToast();
@@ -55,7 +56,7 @@ export default function WorkoutScreen() {
 
   const loadData = useCallback(async () => {
     if (!user) return;
-    await Promise.all([loadSessions(user.id), loadExercises(), resumeRestTimer()]);
+    await Promise.all([loadSessions(user.id), loadExercises(), resumeRestTimer(), fetchTemplates(user.id)]);
   }, [user?.id]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
@@ -66,18 +67,15 @@ export default function WorkoutScreen() {
     setRefreshing(false);
   };
 
-  const handleCreateSession = async (templateName?: string) => {
+  const handleCreateBlankSession = async () => {
     if (!user) return;
-    const name = templateName ?? (newSessionName.trim() || `Workout ${new Date().toLocaleDateString(dateLocale, { weekday: 'short', month: 'short', day: 'numeric' })}`);
+    const name = newSessionName.trim() || `Workout ${new Date().toLocaleDateString(dateLocale, { weekday: 'short', month: 'short', day: 'numeric' })}`;
     try {
-      const session = templateName
-        ? await createSessionFromTemplate(user.id, name)
-        : await createNewSession(user.id, name);
+      const session = await createNewSession(user.id, name);
       setShowNewSession(false);
       setNewSessionName('');
       setNewSessionTab('blank');
       await haptics.success();
-      // Re-evaluate after session creation (unlocks "première séance", compteurs, etc.)
       const state = useWorkoutStore.getState();
       evaluateAll({
         sessionSets: [],
@@ -94,10 +92,28 @@ export default function WorkoutScreen() {
     }
   };
 
-  // Get unique routine names from past sessions (templates)
-  const templates = [...new Map(
-    sessions.map((s) => [s.name, s])
-  ).values()].slice(0, 10);
+  const handleStartFromTemplate = async (templateId: string, templateName: string) => {
+    if (!user) return;
+    try {
+      const session = await instantiateSessionFromTemplate(user.id, templateId, templateName);
+      setShowNewSession(false);
+      setNewSessionTab('blank');
+      await haptics.success();
+      const state = useWorkoutStore.getState();
+      evaluateAll({
+        sessionSets: [],
+        allSets: state.sets,
+        sessions: state.sessions,
+        exercises: state.exercises,
+        currentSessionId: session.id,
+        getPersonalRecord: state.getPersonalRecord,
+        getStreakWeeks: state.getStreakWeeks,
+      }).catch(() => {});
+      router.push(`/session/${session.id}`);
+    } catch {
+      toast.error(t('workout.failed_create'));
+    }
+  };
 
   const handleDeleteSession = (session: Session) => {
     Alert.alert(t('workout.delete_title'), t('workout.delete_msg', { name: session.name }), [
@@ -299,24 +315,29 @@ export default function WorkoutScreen() {
                   placeholderTextColor="#3a3a4a"
                   autoFocus
                   returnKeyType="done"
-                  onSubmitEditing={() => handleCreateSession()}
+                  onSubmitEditing={handleCreateBlankSession}
                 />
-                <TouchableOpacity style={styles.modalBtn} onPress={() => handleCreateSession()}>
+                <TouchableOpacity style={styles.modalBtn} onPress={handleCreateBlankSession}>
                   <Text style={styles.modalBtnText}>{t('workout.start_session_btn')}</Text>
                 </TouchableOpacity>
               </>
             ) : (
-              <FlatList
-                data={templates}
-                keyExtractor={(item) => item.id}
-                style={{ maxHeight: 320 }}
-                renderItem={({ item }) => {
-                  const templateSets = sets.filter((s) => String(s.session_id) === String(item.id));
-                  const exerciseCount = new Set(templateSets.map((s) => s.exercise_id)).size;
-                  return (
+              <>
+                <TouchableOpacity
+                  style={styles.manageTemplatesBtn}
+                  onPress={() => { setShowNewSession(false); router.push('/templates'); }}
+                >
+                  <Ionicons name="settings-outline" size={15} color="#7a7a90" />
+                  <Text style={styles.manageTemplatesBtnText}>{t('templates.manage')}</Text>
+                </TouchableOpacity>
+                <FlatList
+                  data={templates}
+                  keyExtractor={(item) => item.id}
+                  style={{ maxHeight: 300 }}
+                  renderItem={({ item }) => (
                     <TouchableOpacity
                       style={styles.templateRow}
-                      onPress={() => handleCreateSession(item.name)}
+                      onPress={() => handleStartFromTemplate(item.id, item.name)}
                       activeOpacity={0.8}
                     >
                       <View style={styles.templateIcon}>
@@ -324,22 +345,26 @@ export default function WorkoutScreen() {
                       </View>
                       <View style={styles.templateInfo}>
                         <Text style={styles.templateName}>{item.name}</Text>
-                        <Text style={styles.templateMeta}>
-                          {exerciseCount > 0 ? `${exerciseCount} ${t('workout.exercises')} · ` : ''}
-                          {new Date(item.date).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}
-                        </Text>
+                        {item.description ? (
+                          <Text style={styles.templateMeta} numberOfLines={1}>{item.description}</Text>
+                        ) : null}
                       </View>
                       <Ionicons name="chevron-forward" size={16} color="#3a3a4a" />
                     </TouchableOpacity>
-                  );
-                }}
-                ListEmptyComponent={
-                  <View style={{ padding: 20, alignItems: 'center' }}>
-                    <Text style={{ color: '#7a7a90', fontSize: 14 }}>{t('workout.no_past_sessions')}</Text>
-                  </View>
-                }
-                showsVerticalScrollIndicator={false}
-              />
+                  )}
+                  ListEmptyComponent={
+                    <View style={{ padding: 20, alignItems: 'center', gap: 8 }}>
+                      <Text style={{ color: '#7a7a90', fontSize: 14, textAlign: 'center' }}>{t('templates.no_templates')}</Text>
+                      <TouchableOpacity
+                        onPress={() => { setShowNewSession(false); router.push('/templates'); }}
+                      >
+                        <Text style={{ color: '#c8f060', fontSize: 13, fontWeight: '600' }}>{t('templates.new_template')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  }
+                  showsVerticalScrollIndicator={false}
+                />
+              </>
             )}
           </View>
         </View>
@@ -464,6 +489,15 @@ const styles = StyleSheet.create({
   modalTabActive: { backgroundColor: '#c8f060' },
   modalTabText: { color: '#7a7a90', fontSize: 13, fontWeight: '600' },
   modalTabTextActive: { color: '#0f0f12' },
+  manageTemplatesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-end',
+    paddingVertical: 4,
+    marginTop: -8,
+  },
+  manageTemplatesBtnText: { color: '#7a7a90', fontSize: 13, fontWeight: '600' },
   templateRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: '#0f0f12', borderRadius: 12, padding: 12,

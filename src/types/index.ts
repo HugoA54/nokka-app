@@ -384,3 +384,26 @@ export interface Achievement {
   color: string;
   unlockedAt: string;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEMPLATES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Template {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  created_at?: string;
+}
+
+export interface TemplateExercise {
+  id: string;
+  template_id: string;
+  exercise_id: string;
+  exercise_name: string;
+  order_index: number;
+  default_sets: number;
+  default_reps: number;
+  default_weight: number;
+}

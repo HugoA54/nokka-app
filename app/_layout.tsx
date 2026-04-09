@@ -115,6 +115,14 @@ export default function RootLayout() {
             name="shopping-list"
             options={{ title: i18n.t('shopping_list.title'), headerBackTitle: 'Back' }}
           />
+          <Stack.Screen
+            name="templates/index"
+            options={{ title: i18n.t('templates.title'), headerBackTitle: 'Back' }}
+          />
+          <Stack.Screen
+            name="templates/[id]"
+            options={{ title: i18n.t('templates.title'), headerBackTitle: 'Back' }}
+          />
         </Stack>
         <ToastContainer />
         <AchievementToast />

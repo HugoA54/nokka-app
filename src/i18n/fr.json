@@ -321,6 +321,27 @@
     "title": "Timer de repos",
     "stop": "Arrêter"
   },
+  "templates": {
+    "title": "Modèles",
+    "new_template": "Nouveau modèle",
+    "no_templates": "Aucun modèle",
+    "create_first": "Crée ton premier modèle d'entraînement",
+    "name_placeholder": "Nom du modèle",
+    "description_placeholder": "Description (optionnel)",
+    "add_exercise": "Ajouter un exercice",
+    "save": "Sauvegarder",
+    "saved": "Modèle sauvegardé !",
+    "failed_save": "Échec de la sauvegarde.",
+    "failed_load": "Échec du chargement.",
+    "failed_delete": "Échec de la suppression.",
+    "default_sets": "Séries",
+    "default_reps": "Reps",
+    "default_weight": "Poids (kg)",
+    "no_exercises": "Aucun exercice ajouté",
+    "delete_title": "Supprimer le modèle",
+    "delete_msg": "Supprimer \"{{name}}\" ?",
+    "manage": "Gérer"
+  },
   "creatine_card": {
     "title": "Créatine",
     "taken_today": "Prise aujourd'hui ✓",

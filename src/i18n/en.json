@@ -321,6 +321,27 @@
     "title": "Rest Timer",
     "stop": "Stop"
   },
+  "templates": {
+    "title": "Templates",
+    "new_template": "New Template",
+    "no_templates": "No templates yet",
+    "create_first": "Create your first workout template",
+    "name_placeholder": "Template name",
+    "description_placeholder": "Description (optional)",
+    "add_exercise": "Add Exercise",
+    "save": "Save",
+    "saved": "Template saved!",
+    "failed_save": "Failed to save template.",
+    "failed_load": "Failed to load template.",
+    "failed_delete": "Failed to delete template.",
+    "default_sets": "Sets",
+    "default_reps": "Reps",
+    "default_weight": "Weight (kg)",
+    "no_exercises": "No exercises added yet",
+    "delete_title": "Delete Template",
+    "delete_msg": "Delete \"{{name}}\"?",
+    "manage": "Manage"
+  },
   "creatine_card": {
     "title": "Creatine",
     "taken_today": "Taken today ✓",

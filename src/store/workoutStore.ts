@@ -79,6 +79,7 @@ interface WorkoutState {
   calculate1RMForSet: (weight: number, reps: number) => number;
   getLastPerformance: (exerciseId: string) => WorkoutSet | null;
   getLastSessionSetsForExercise: (exerciseId: string, excludeSessionId?: string) => WorkoutSet[];
+  getLastNSessionsForExercise: (exerciseId: string, n: number, excludeSessionId?: string) => { sessionId: string; date: string; note: string | null; sets: WorkoutSet[] }[];
   getExerciseProgressionData: (exerciseId: string) => ExerciseProgressionPoint[];
   getPersonalRecord: (exerciseId: string) => PersonalRecord | null;
   getMuscleDistribution: () => MuscleDistribution[];
@@ -540,6 +541,30 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     return exerciseSets
       .filter((s) => String(s.session_id) === String(lastSession.id))
       .sort((a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime());
+  },
+
+  getLastNSessionsForExercise: (exerciseId: string, n: number, excludeSessionId?: string) => {
+    const { sets, sessions } = get();
+    const exerciseSets = sets.filter(
+      (s) =>
+        String(s.exercise_id) === String(exerciseId) &&
+        (s.weight > 0 || s.repetitions > 0) &&
+        (!excludeSessionId || String(s.session_id) !== String(excludeSessionId))
+    );
+    if (exerciseSets.length === 0) return [];
+    const sessionIds = [...new Set(exerciseSets.map((s) => String(s.session_id)))];
+    const sortedSessions = sessions
+      .filter((s) => sessionIds.includes(String(s.id)))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, n);
+    return sortedSessions.map((session) => ({
+      sessionId: String(session.id),
+      date: session.date,
+      note: session.note ?? null,
+      sets: exerciseSets
+        .filter((s) => String(s.session_id) === String(session.id))
+        .sort((a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime()),
+    }));
   },
 
   getExerciseProgressionData: (exerciseId: string): ExerciseProgressionPoint[] => {

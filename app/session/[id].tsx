@@ -53,6 +53,7 @@ export default function SessionDetailScreen() {
     isLoadingSets,
     getLastPerformance,
     getLastSessionSetsForExercise,
+    getLastNSessionsForExercise,
     getPersonalRecord,
     getStreakWeeks,
   } = useWorkoutStore();
@@ -144,15 +145,17 @@ export default function SessionDetailScreen() {
     setIsLoadingRecs(true);
 
     const exercisesData = currentSections.map((section) => {
-      const prevSets = getLastSessionSetsForExercise(section.exerciseId, id);
-      if (prevSets.length === 0) return null;
-      const prevSessionId = prevSets[0]?.session_id;
-      const prevSession = sessions.find((s) => String(s.id) === String(prevSessionId));
-      const prevSessionNote = prevSession?.note ? `\nNote de séance: "${prevSession.note}"` : '';
-      const setsText = prevSets
-        .map((s, i) => `  Série ${i + 1}: ${s.weight}kg × ${s.repetitions} reps${s.rpe ? ` (RPE ${s.rpe})` : ''}${s.note ? ` — Note: "${s.note}"` : ''}`)
-        .join('\n');
-      return `Exercice: ${section.exerciseName}\nID: ${section.exerciseId}\nDernière séance:${prevSessionNote}\n${setsText}`;
+      const history = getLastNSessionsForExercise(section.exerciseId, 3, id);
+      if (history.length === 0) return null;
+      const historyText = history.map((h, hi) => {
+        const label = hi === 0 ? 'Séance N-1' : hi === 1 ? 'Séance N-2' : 'Séance N-3';
+        const sessionNote = h.note ? ` (note: "${h.note}")` : '';
+        const setsText = h.sets
+          .map((s, i) => `    S${i + 1}: ${s.weight}kg×${s.repetitions}${s.rpe ? ` RPE${s.rpe}` : ''}${s.note ? ` "${s.note}"` : ''}`)
+          .join(' | ');
+        return `  ${label} [${h.date}]${sessionNote}:\n    ${setsText}`;
+      }).join('\n');
+      return `Exercice: ${section.exerciseName} (ID:${section.exerciseId})\n${historyText}`;
     }).filter(Boolean).join('\n\n');
 
     if (!exercisesData) { setIsLoadingRecs(false); return; }
@@ -282,36 +285,38 @@ export default function SessionDetailScreen() {
       return `${section.exerciseName}:\n${setsText}`;
     }).join('\n\n');
 
-    // Build previous session summary for the same exercises
-    const prevSummaries = sections.map((section) => {
-      const prevSets = getLastSessionSetsForExercise(section.exerciseId, id);
-      if (prevSets.length === 0) return `${section.exerciseName}: ${t('session.previous_session')}`;
-      const prevSessionId = prevSets[0]?.session_id;
-      const prevSession = sessions.find((s) => String(s.id) === String(prevSessionId));
-      const prevSessionNote = prevSession?.note ? `\n  Note de séance: "${prevSession.note}"` : '';
-      const setsText = prevSets
-        .map((s, i) => `  Série ${i + 1}: ${s.weight}kg × ${s.repetitions} reps${s.rpe ? ` (RPE ${s.rpe})` : ''}${s.note ? ` — Note: "${s.note}"` : ''}`)
-        .join('\n');
-      return `${section.exerciseName}:${prevSessionNote}\n${setsText}`;
+    // Build history for each exercise (last 3 sessions)
+    const historyByExercise = sections.map((section) => {
+      const history = getLastNSessionsForExercise(section.exerciseId, 3, id);
+      if (history.length === 0) return `${section.exerciseName}: aucun historique`;
+      const lines = history.map((h, hi) => {
+        const label = hi === 0 ? 'N-1' : hi === 1 ? 'N-2' : 'N-3';
+        const sessionNote = h.note ? ` (note séance: "${h.note}")` : '';
+        const setsText = h.sets
+          .map((s, i) => `S${i + 1}:${s.weight}kg×${s.repetitions}${s.rpe ? `/RPE${s.rpe}` : ''}${s.note ? `/"${s.note}"` : ''}`)
+          .join(' ');
+        return `  [${label} ${h.date}]${sessionNote}: ${setsText}`;
+      }).join('\n');
+      return `${section.exerciseName}:\n${lines}`;
     }).join('\n\n');
 
     const totalVolume = sessionSets.reduce((sum, s) => sum + s.weight * s.repetitions, 0);
-    const sessionNoteText = note?.trim() ? `\nNote du sportif: "${note}"` : '';
+    const sessionNoteText = note?.trim() ? `\nNote de l'athlète: "${note}"` : '';
 
-    const prompt = `Tu es un coach sportif expert en musculation. Analyse cette séance d'entraînement et compare-la à la précédente.
+    const prompt = `Tu es un coach expert en musculation. Analyse cette séance et son historique récent.
 
-SÉANCE ACTUELLE (${session?.name ?? 'Séance'}) :
-Volume total : ${totalVolume.toFixed(0)}kg${sessionNoteText}
+SÉANCE ACTUELLE — ${session?.name ?? 'Séance'} (volume: ${totalVolume.toFixed(0)}kg)${sessionNoteText}
 ${exerciseSummaries}
 
-SÉANCE PRÉCÉDENTE (mêmes exercices) :
-${prevSummaries}
+HISTORIQUE (3 dernières séances par exercice) :
+${historyByExercise}
 
-Donne une analyse concise en français (4-6 phrases) couvrant :
-1. Les progrès notables par rapport à la séance précédente
-2. Les points forts de cette séance
-3. Un ou deux conseils concrets pour la prochaine séance
-Sois direct et motivant, comme un vrai coach.`;
+Rédige une analyse coach en français, 5-7 phrases max, structurée ainsi :
+1. Tendance globale sur les dernières séances (progression, stagnation, régression ?)
+2. Signaux de fatigue détectés (RPE en hausse pour même charge ?)
+3. Points forts de cette séance
+4. 1-2 ajustements précis et actionnables pour la prochaine séance (charge, volume, récup)
+Sois direct, factuel, cite des chiffres. Pas de blabla.`;
 
     try {
       const result = await geminiService.analyzeWorkoutSession(prompt);

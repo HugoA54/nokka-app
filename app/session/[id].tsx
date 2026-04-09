@@ -76,7 +76,6 @@ export default function SessionDetailScreen() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiRecommendations, setAiRecommendations] = useState<ProgressionRecommendation[]>([]);
   const [isLoadingRecs, setIsLoadingRecs] = useState(false);
-  const [showRecs, setShowRecs] = useState(true);
   const [aiEnabled, setAiEnabled] = useState(false);
   const aiEnabledRef = useRef(false);
   const hasLoadedRecs = useRef(false);
@@ -393,19 +392,45 @@ Sois direct, factuel, cite des chiffres. Pas de blabla.`;
         keyExtractor={(item) => item.id}
         renderSectionHeader={({ section }) => {
           const ex = exercises.find((e) => String(e.id) === section.exerciseId);
+          const rec = aiRecommendations.find((r) => String(r.exerciseId) === String(section.exerciseId));
           return (
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionExerciseName}>{section.exerciseName}</Text>
-              <Text style={styles.sectionSetCount}>
-                {section.data.length === 1 ? t('session.set_count_one') : t('session.set_count_other', { count: section.data.length })}
-              </Text>
-              {ex && (
+            <View style={styles.sectionHeaderWrap}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionExerciseName}>{section.exerciseName}</Text>
+                <Text style={styles.sectionSetCount}>
+                  {section.data.length === 1 ? t('session.set_count_one') : t('session.set_count_other', { count: section.data.length })}
+                </Text>
+                {isLoadingRecs && (
+                  <Ionicons name="sparkles" size={13} color="#3a3a4a" style={{ marginLeft: 4 }} />
+                )}
+                {ex && (
+                  <TouchableOpacity
+                    style={styles.sectionAddBtn}
+                    onPress={() => handleSelectExercise(ex)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="add" size={16} color="#c8f060" />
+                  </TouchableOpacity>
+                )}
+              </View>
+              {rec && ex && (
                 <TouchableOpacity
-                  style={styles.sectionAddBtn}
-                  onPress={() => handleSelectExercise(ex)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={styles.recBanner}
+                  onPress={() => {
+                    setSelectedExercise(ex);
+                    setWeight(String(rec.targetWeight > 0 ? rec.targetWeight : ''));
+                    setReps(String(rec.targetReps));
+                    setRpe('');
+                    setShowAddSet(true);
+                    haptics.light();
+                  }}
+                  activeOpacity={0.75}
                 >
-                  <Ionicons name="add" size={16} color="#c8f060" />
+                  <Ionicons name="sparkles" size={11} color="#c8f060" />
+                  <Text style={styles.recBannerText}>
+                    {rec.targetWeight > 0 ? `${rec.targetWeight}kg × ` : ''}{rec.targetReps} reps · {rec.tip}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={11} color="#5a5a70" />
                 </TouchableOpacity>
               )}
             </View>
@@ -489,45 +514,11 @@ Sois direct, factuel, cite des chiffres. Pas de blabla.`;
               numberOfLines={2}
             />
 
-            {/* AI Progressive Overload Recommendations */}
-            {aiEnabled && (isLoadingRecs || (aiRecommendations.length > 0 && showRecs)) && (
-              <View style={styles.recsCard}>
-                <View style={styles.recsHeader}>
-                  <Ionicons name="sparkles" size={14} color="#c8f060" />
-                  <Text style={styles.recsTitle}>{t('session.progressive_recs')}</Text>
-                  {!isLoadingRecs && (
-                    <TouchableOpacity
-                      onPress={() => setShowRecs(false)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons name="close" size={16} color="#5a5a70" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-                {isLoadingRecs ? (
-                  <View style={styles.recsLoading}>
-                    <Ionicons name="sparkles" size={16} color="#3a3a4a" />
-                    <Text style={styles.recsLoadingText}>{t('session.analyzing')}</Text>
-                  </View>
-                ) : (
-                  aiRecommendations.map((rec) => (
-                    <View key={rec.exerciseId} style={styles.recRow}>
-                      <Text style={styles.recExName}>{rec.exerciseName}</Text>
-                      <View style={styles.recTargets}>
-                        <View style={styles.recChip}>
-                          <Text style={styles.recChipText}>{rec.targetSets}×{rec.targetReps}</Text>
-                          <Text style={styles.recChipSub}>séries×reps</Text>
-                        </View>
-                        {rec.targetWeight > 0 && (
-                          <View style={[styles.recChip, styles.recChipHighlight]}>
-                            <Text style={[styles.recChipText, styles.recChipTextHighlight]}>{rec.targetWeight}kg</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.recTip}>{rec.tip}</Text>
-                    </View>
-                  ))
-                )}
+            {/* Recs loading indicator in header (before exercises appear) */}
+            {aiEnabled && isLoadingRecs && sections.length === 0 && (
+              <View style={styles.recsLoading}>
+                <Ionicons name="sparkles" size={14} color="#3a3a4a" />
+                <Text style={styles.recsLoadingText}>{t('session.analyzing')}</Text>
               </View>
             )}
           </View>
@@ -859,6 +850,11 @@ const styles = StyleSheet.create({
     borderColor: '#2a2a35', paddingHorizontal: 12, paddingVertical: 10,
     color: '#f0f0f0', fontSize: 13, lineHeight: 18, minHeight: 44,
   },
+  sectionHeaderWrap: {
+    marginTop: 12,
+    marginBottom: 4,
+    gap: 3,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -867,10 +863,25 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    marginTop: 12,
-    marginBottom: 4,
     borderWidth: 1,
     borderColor: '#2a2a35',
+  },
+  recBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0f1a08',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: 'rgba(200,240,96,0.2)',
+  },
+  recBannerText: {
+    flex: 1,
+    color: '#a0c050',
+    fontSize: 12,
+    fontWeight: '600',
   },
   sectionExerciseName: { color: '#c8f060', fontSize: 14, fontWeight: '700', flex: 1 },
   sectionSetCount: { color: '#7a7a90', fontSize: 12 },
@@ -992,33 +1003,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a22', borderRadius: 8, borderWidth: 1, borderColor: '#2a2a35',
   },
   aiRetryText: { color: '#7a7a90', fontSize: 12 },
-  recsCard: {
-    backgroundColor: '#0f1a08', borderRadius: 12, padding: 12,
-    borderWidth: 1, borderColor: 'rgba(200,240,96,0.2)', gap: 8,
-  },
-  recsHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderBottomWidth: 1, borderBottomColor: 'rgba(200,240,96,0.1)', paddingBottom: 8,
-  },
-  recsTitle: { color: '#c8f060', fontSize: 12, fontWeight: '700', flex: 1 },
   recsLoading: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
   recsLoadingText: { color: '#3a3a4a', fontSize: 13 },
-  recRow: {
-    backgroundColor: '#161c0e', borderRadius: 10, padding: 10, gap: 4,
-    borderWidth: 1, borderColor: 'rgba(200,240,96,0.08)',
-  },
-  recExName: { color: '#e0e0e0', fontSize: 13, fontWeight: '700' },
-  recTargets: { flexDirection: 'row', gap: 6, marginTop: 4 },
-  recChip: {
-    flexDirection: 'row', alignItems: 'baseline', gap: 3,
-    backgroundColor: '#2a2a35', borderRadius: 8,
-    paddingHorizontal: 8, paddingVertical: 4,
-  },
-  recChipHighlight: { backgroundColor: 'rgba(200,240,96,0.12)', borderWidth: 1, borderColor: 'rgba(200,240,96,0.3)' },
-  recChipText: { color: '#f0f0f0', fontSize: 14, fontWeight: '700' },
-  recChipTextHighlight: { color: '#c8f060' },
-  recChipSub: { color: '#5a5a70', fontSize: 10 },
-  recTip: { color: '#7a7a90', fontSize: 12, fontStyle: 'italic', marginTop: 2 },
   summaryContent: { gap: 12 },
   summaryStats: {
     flexDirection: 'row', backgroundColor: '#0f0f12', borderRadius: 12,

@@ -367,6 +367,24 @@ export interface ChallengeEvalData {
   currentSessionId: string | null;
   getPersonalRecord: (exerciseId: string) => PersonalRecord | null;
   getStreakWeeks: () => number;
+  absStreak?: number;
+  absTotal?: number;
+}
+
+export type AbsLevel = 'beginner' | 'intermediate' | 'advanced';
+
+export interface AbsExercise {
+  id: string;
+  nameKey: string;
+  type: 'reps' | 'time';
+  sets: number;
+  value: number;
+  perSide?: boolean;
+}
+
+export interface AbsRoutine {
+  level: AbsLevel;
+  exercises: AbsExercise[];
 }
 
 export interface ChallengeProgress {

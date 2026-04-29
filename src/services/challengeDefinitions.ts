@@ -393,6 +393,30 @@ export const ACHIEVEMENTS: ChallengeDefinition[] = [
     icon: 'barbell-outline', target: 100000, unit: 'kg', color: '#c860f0',
     evaluate: ({ allSets }) => totalVolume(allSets),
   },
+  {
+    id: 'ach_abs_first', category: 'achievement', title: 'Premiers abdos',
+    description: 'Termine ta toute première routine abdos',
+    icon: 'fitness-outline', target: 1, unit: 'routine', color: '#f060a8',
+    evaluate: ({ absTotal }) => absTotal ?? 0,
+  },
+  {
+    id: 'ach_abs_streak_7', category: 'achievement', title: 'Abdos 7 jours',
+    description: '7 jours consécutifs de routine abdos',
+    icon: 'flame-outline', target: 7, unit: 'jours', color: '#f0a060',
+    evaluate: ({ absStreak }) => absStreak ?? 0,
+  },
+  {
+    id: 'ach_abs_streak_30', category: 'achievement', title: 'Abdos 30 jours',
+    description: '30 jours consécutifs — discipline de fer',
+    icon: 'flame', target: 30, unit: 'jours', color: '#f04060',
+    evaluate: ({ absStreak }) => absStreak ?? 0,
+  },
+  {
+    id: 'ach_abs_50_total', category: 'achievement', title: '50 routines abdos',
+    description: 'Cumule 50 routines abdos terminées',
+    icon: 'shield-checkmark-outline', target: 50, unit: 'routines', color: '#c860f0',
+    evaluate: ({ absTotal }) => absTotal ?? 0,
+  },
 ];
 
 // ── Daily / Weekly rotation exports ──────────────────────────────────────────

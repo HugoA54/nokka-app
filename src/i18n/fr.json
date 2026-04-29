@@ -165,6 +165,10 @@
     "creatine_fixed": "Notification à {{hour}}h00",
     "creatine_interval_mode": "Intervalle",
     "creatine_fixed_mode": "Heure fixe",
+    "abs_routine": "Routine Abdos",
+    "abs_disabled": "Désactivée",
+    "abs_summary": "{{level}} — rappel à {{hour}}h00",
+    "abs_reminder_hour": "Heure du rappel",
     "save_profile": "Sauvegarder le profil",
     "saving": "Sauvegarde…",
     "account": "Compte",
@@ -355,5 +359,42 @@
     "disable_confirm_msg": "La carte et les notifications seront masquées. Tu peux les réactiver dans le Profil.",
     "disable_confirm_yes": "Désactiver",
     "disable_confirm_no": "Annuler"
+  },
+  "abs": {
+    "level": {
+      "beginner": "Débutant",
+      "intermediate": "Intermédiaire",
+      "advanced": "Avancé"
+    },
+    "card": {
+      "title": "Routine Abdos",
+      "done_today": "Terminée aujourd'hui ✓",
+      "cta": "{{level}} — appuie pour démarrer"
+    },
+    "player": {
+      "title": "Routine Abdos",
+      "reps": "reps",
+      "side": "côté",
+      "per_side": "côté",
+      "day_streak": "j",
+      "done_today": "Routine du jour terminée — bravo !",
+      "finish": "Terminer la routine ✓",
+      "finish_force": "Marquer comme terminée",
+      "completed_toast": "Routine abdos terminée 💪",
+      "undo": "Annuler la routine du jour"
+    },
+    "exercise": {
+      "crunch": "Crunch",
+      "plank": "Planche",
+      "bicycle": "Bicycle crunch",
+      "leg_raise_bent": "Leg raise (jambes pliées)",
+      "leg_raise": "Leg raise",
+      "russian_twist": "Russian twist",
+      "russian_twist_weighted": "Russian twist (lesté)",
+      "mountain_climber": "Mountain climber",
+      "hanging_leg_raise": "Hanging leg raise",
+      "v_up": "V-up",
+      "side_plank": "Planche latérale"
+    }
   }
 }

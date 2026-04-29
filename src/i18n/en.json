@@ -165,6 +165,10 @@
     "creatine_fixed": "Notification at {{hour}}:00",
     "creatine_interval_mode": "Interval",
     "creatine_fixed_mode": "Fixed hour",
+    "abs_routine": "Abs Routine",
+    "abs_disabled": "Disabled",
+    "abs_summary": "{{level}} — reminder at {{hour}}:00",
+    "abs_reminder_hour": "Reminder hour",
     "save_profile": "Save Profile",
     "saving": "Saving…",
     "account": "Account",
@@ -355,5 +359,42 @@
     "disable_confirm_msg": "The card and notifications will be hidden. You can re-enable them in Profile.",
     "disable_confirm_yes": "Disable",
     "disable_confirm_no": "Cancel"
+  },
+  "abs": {
+    "level": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
+    "card": {
+      "title": "Abs Routine",
+      "done_today": "Done today ✓",
+      "cta": "{{level}} — tap to start"
+    },
+    "player": {
+      "title": "Abs Routine",
+      "reps": "reps",
+      "side": "side",
+      "per_side": "side",
+      "day_streak": "d",
+      "done_today": "Today's routine complete — well done!",
+      "finish": "Finish routine ✓",
+      "finish_force": "Mark as done",
+      "completed_toast": "Abs routine done 💪",
+      "undo": "Undo today's routine"
+    },
+    "exercise": {
+      "crunch": "Crunch",
+      "plank": "Plank",
+      "bicycle": "Bicycle crunch",
+      "leg_raise_bent": "Leg raise (bent knees)",
+      "leg_raise": "Leg raise",
+      "russian_twist": "Russian twist",
+      "russian_twist_weighted": "Weighted Russian twist",
+      "mountain_climber": "Mountain climber",
+      "hanging_leg_raise": "Hanging leg raise",
+      "v_up": "V-up",
+      "side_plank": "Side plank"
+    }
   }
 }

@@ -18,7 +18,8 @@ import { useHaptics } from '@hooks/useHaptics';
 import { calculateDailyMetrics } from '@services/calorieCalculations';
 import { geminiService } from '@services/geminiService';
 import { getCreatineSettings, saveCreatineSettings, type CreatineMode, type CreatineSettings } from '@services/creatineReminder';
-import type { ActivityLevel, FitnessGoal, Gender, UserProfile } from '@types/index';
+import { getAbsSettings, saveAbsSettings, type AbsRoutineSettings } from '@services/absRoutine';
+import type { AbsLevel, ActivityLevel, FitnessGoal, Gender, UserProfile } from '@types/index';
 import { setStoredLanguage, supportedLanguages } from '../../src/i18n';
 
 const INTERVAL_OPTIONS = [
@@ -29,6 +30,8 @@ const INTERVAL_OPTIONS = [
 ];
 
 const FIXED_HOUR_OPTIONS = [7, 8, 9, 10, 12, 14, 18, 20];
+
+const ABS_HOUR_OPTIONS = [7, 12, 17, 18, 19, 20, 21];
 
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
@@ -69,6 +72,9 @@ export default function ProfileScreen() {
   const [creatineMode, setCreatineMode] = useState<CreatineMode>('interval');
   const [creatineInterval, setCreatineInterval] = useState(1);
   const [creatineFixedHour, setCreatineFixedHour] = useState(9);
+  const [absEnabled, setAbsEnabled] = useState(false);
+  const [absLevel, setAbsLevel] = useState<AbsLevel>('beginner');
+  const [absHour, setAbsHour] = useState(19);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -84,6 +90,11 @@ export default function ProfileScreen() {
     setCreatineMode(cs.mode);
     setCreatineInterval(cs.intervalHours);
     setCreatineFixedHour(cs.fixedHour);
+    // Load abs routine settings
+    const as = await getAbsSettings();
+    setAbsEnabled(as.enabled);
+    setAbsLevel(as.level);
+    setAbsHour(as.reminderHour);
   }, [user?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -150,6 +161,19 @@ export default function ProfileScreen() {
     if (patch.fixedHour !== undefined) setCreatineFixedHour(patch.fixedHour);
     if (patch.intervalHours !== undefined) setCreatineInterval(patch.intervalHours);
     await saveCreatineSettings(updated);
+    await haptics.light();
+  };
+
+  const saveAbs = async (patch: Partial<AbsRoutineSettings>) => {
+    const updated: AbsRoutineSettings = {
+      enabled: patch.enabled ?? absEnabled,
+      level: patch.level ?? absLevel,
+      reminderHour: patch.reminderHour ?? absHour,
+    };
+    if (patch.enabled !== undefined) setAbsEnabled(patch.enabled);
+    if (patch.level !== undefined) setAbsLevel(patch.level);
+    if (patch.reminderHour !== undefined) setAbsHour(patch.reminderHour);
+    await saveAbsSettings(updated);
     await haptics.light();
   };
 
@@ -494,6 +518,62 @@ export default function ProfileScreen() {
         )}
       </View>
 
+      {/* Abs Routine */}
+      <View style={styles.card}>
+        <View style={styles.calcRow}>
+          <View style={styles.calcInfo}>
+            <Text style={styles.calcTitle}>{t('profile.abs_routine')}</Text>
+            <Text style={styles.calcDesc}>
+              {absEnabled
+                ? t('profile.abs_summary', {
+                    level: t(`abs.level.${absLevel}`),
+                    hour: absHour,
+                  })
+                : t('profile.abs_disabled')}
+            </Text>
+          </View>
+          <Switch
+            value={absEnabled}
+            onValueChange={(v) => saveAbs({ enabled: v })}
+            trackColor={{ false: '#2a2a35', true: '#f060a8' }}
+            thumbColor={absEnabled ? '#0f0f12' : '#7a7a90'}
+          />
+        </View>
+        {absEnabled && (
+          <View style={styles.creatineSettings}>
+            {/* Level selector */}
+            <View style={styles.creatineModeRow}>
+              {(['beginner', 'intermediate', 'advanced'] as AbsLevel[]).map((lvl) => (
+                <TouchableOpacity
+                  key={lvl}
+                  style={[styles.creatineModeBtn, absLevel === lvl && styles.absLevelBtnActive]}
+                  onPress={() => saveAbs({ level: lvl })}
+                >
+                  <Text style={[styles.creatineModeText, absLevel === lvl && styles.creatineModeTextActive]}>
+                    {t(`abs.level.${lvl}`)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {/* Reminder hour */}
+            <Text style={styles.fieldLabel}>{t('profile.abs_reminder_hour')}</Text>
+            <View style={styles.creatineChipRow}>
+              {ABS_HOUR_OPTIONS.map((h) => (
+                <TouchableOpacity
+                  key={h}
+                  style={[styles.creatineChip, absHour === h && styles.absChipActive]}
+                  onPress={() => saveAbs({ reminderHour: h })}
+                >
+                  <Text style={[styles.creatineChipText, absHour === h && styles.creatineChipTextActive]}>
+                    {h}h
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+      </View>
+
       {/* Save Button */}
       {editing && (
         <TouchableOpacity
@@ -643,6 +723,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f0f12', borderWidth: 1, borderColor: '#2a2a35',
   },
   creatineChipActive: { backgroundColor: '#60d4f0', borderColor: '#60d4f0' },
+  absLevelBtnActive: { backgroundColor: '#f060a8', borderColor: '#f060a8' },
+  absChipActive: { backgroundColor: '#f060a8', borderColor: '#f060a8' },
   creatineChipText: { color: '#7a7a90', fontSize: 14, fontWeight: '700' },
   creatineChipTextActive: { color: '#0f0f12' },
   aiKeySection: { gap: 10 },

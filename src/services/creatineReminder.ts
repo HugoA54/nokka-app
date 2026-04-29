@@ -24,9 +24,6 @@ const DEFAULT_SETTINGS: CreatineSettings = {
   intervalHours: 1,
 };
 
-// All possible notification IDs we might schedule
-const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);
-
 const isExpoGo = Constants.appOwnership === 'expo';
 
 function todayKey(): string {
@@ -74,9 +71,11 @@ export async function hasCreatineToday(): Promise<boolean> {
 
 export async function markCreatineTaken(): Promise<void> {
   await AsyncStorage.setItem(todayKey(), 'true');
-  // Cancel current DAILY triggers then immediately reschedule them so they
-  // come back tomorrow — without this they'd be gone permanently.
-  await scheduleCreatineReminders();
+  // Cancel all scheduled notifications for today.
+  // initCreatineReminder (called on next app foreground / new day) will reschedule them.
+  // Fire-and-forget: cancellation can be slow on Android (multiple native calls);
+  // we don't want to block the UI on it. AsyncStorage flag above is the source of truth.
+  cancelCreatineReminders().catch(() => {});
 }
 
 export async function scheduleCreatineReminders(): Promise<void> {
@@ -119,11 +118,15 @@ export async function scheduleCreatineReminders(): Promise<void> {
 
 export async function cancelCreatineReminders(): Promise<void> {
   if (isExpoGo) return;
-  // Cancel all possible IDs
-  try { await Notifications.cancelScheduledNotificationAsync(`${NOTIF_PREFIX}fixed`); } catch {}
-  for (const hour of ALL_HOURS) {
-    try { await Notifications.cancelScheduledNotificationAsync(`${NOTIF_PREFIX}${hour}`); } catch {}
-  }
+  try {
+    const all = await Notifications.getAllScheduledNotificationsAsync();
+    const ids = all
+      .map((n) => n.identifier)
+      .filter((id): id is string => !!id && id.startsWith(NOTIF_PREFIX));
+    await Promise.all(
+      ids.map((id) => Notifications.cancelScheduledNotificationAsync(id).catch(() => {}))
+    );
+  } catch {}
 }
 
 /** Call on app start + settings change to ensure DAILY triggers are active */
@@ -134,10 +137,12 @@ export async function initCreatineReminder(): Promise<void> {
     await cancelCreatineReminders();
     return;
   }
-  // Always (re)schedule DAILY triggers — they survive without app launch.
-  // If already taken today the UI hides the card; notifications may still
-  // appear today but will be ignored by the user (acceptable trade-off).
-  await scheduleCreatineReminders();
+  // Don't reschedule if already taken today — notifications were cancelled on markCreatineTaken.
+  // They'll be rescheduled tomorrow when todayKey() changes.
+  const taken = await hasCreatineToday();
+  if (!taken) {
+    await scheduleCreatineReminders();
+  }
 }
 
 /** Listen for app becoming active to reschedule (handles new day) */

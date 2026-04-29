@@ -10,6 +10,7 @@ export function CreatineCard() {
   const [taken, setTaken] = useState<boolean | null>(null);
   const [subtitle, setSubtitle] = useState('');
   const [enabled, setEnabled] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -24,8 +25,18 @@ export function CreatineCard() {
   );
 
   const handleTake = async () => {
-    await markCreatineTaken();
+    if (isLoading) return;
+    setIsLoading(true);
+    // Optimistic UI: switch to "taken" state immediately. markCreatineTaken
+    // persists synchronously to AsyncStorage and fires cancellation in background.
     setTaken(true);
+    try {
+      await markCreatineTaken();
+    } catch {
+      setTaken(false);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUndo = async () => {
@@ -87,7 +98,7 @@ export function CreatineCard() {
           <Text style={styles.undoText}>{t('creatine_card.undo')}</Text>
         </TouchableOpacity>
       ) : (
-        <TouchableOpacity onPress={handleTake} style={styles.takeBtn}>
+        <TouchableOpacity onPress={handleTake} style={[styles.takeBtn, isLoading && { opacity: 0.6 }]} disabled={isLoading}>
           <Text style={styles.takeBtnText}>{t('creatine_card.taken_button')}</Text>
         </TouchableOpacity>
       )}

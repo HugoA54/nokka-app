@@ -67,6 +67,15 @@ Sessions : `id, user_id, date (ISO), name, note, created_at`
   - Défis hebdomadaires : reset automatique via ISO week (AsyncStorage `nokka_challenge_week`), réévalués à chaque focus du tab via `useFocusEffect`
   - Badges : permanents, persistés dans AsyncStorage `nokka_achievements`
 - **Rappel créatine** : notif toutes les heures tant que non prise, reset quotidien, carte dashboard avec bouton "Pris ✓" / "Annuler", `expo-notifications` repeating trigger (1h), persisté dans AsyncStorage `nokka_creatine_YYYY-MM-DD`
+- **Routine abdos** :
+  - `src/services/absRoutine.ts` : settings (`enabled`, `level`, `reminderHour`) + history (AsyncStorage `nokka_abs_history` = string[] dates ISO)
+  - 3 niveaux fixes (`ABS_ROUTINES`) — Débutant / Intermédiaire / Avancé, exos `type: 'reps' | 'time'`
+  - Notif DAILY unique (id `abs-routine-reminder`) à `reminderHour`. Annulée à `markAbsRoutineDone` (fire-and-forget), replanifiée à l'`AppState=active` du lendemain via `initAbsRoutine`
+  - Streak journalier dérivé du history (grâce d'un jour si pas encore fait aujourd'hui — reset si jour entier sauté)
+  - Player : `app/abs-routine.tsx` — checklist par exo + countdown JS local pour `type: 'time'` (vibration `[0,300,100,300]` à 0)
+  - Carte dashboard `AbsRoutineCard` masquée si `!enabled`
+  - Badges abs ajoutés à `ACHIEVEMENTS` (4 : 1ère, streak 7j, streak 30j, 50 totales). `ChallengeEvalData` étendu avec `absStreak?` / `absTotal?` optionnels — call sites existants (workout/session) ne les passent pas, sans regression car `wasUnlocked` est préservé
+  - Settings UI dans le profil (toggle, level selector 3 boutons, heure rappel)
 
 ## 📐 Conventions de Code
 - Styles : `StyleSheet.create` inline dans chaque fichier (pas de classes NativeWind dans les screens complexes)

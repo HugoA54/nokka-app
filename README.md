@@ -33,6 +33,7 @@ Application mobile React Native (Expo) combinant suivi d'entraînement, nutritio
 - Accès rapide au classement
 - Pull-to-refresh
 - **Rappel créatine** : carte dashboard avec bouton "Pris ✓", reset quotidien automatique — mode intervalle (1–4h) ou heure fixe configurable depuis le profil
+- **Routine abdos** : carte dashboard activable depuis le profil — 3 niveaux (Débutant / Intermédiaire / Avancé), rappel quotidien à heure configurable, streak journalier visible et badges dédiés
 
 ---
 
@@ -173,6 +174,14 @@ Application mobile React Native (Expo) combinant suivi d'entraînement, nutritio
 - Mode **Heure fixe** : notification à une heure précise (7h, 8h, 9h…)
 - Désactivation complète possible
 
+#### Routine abdos
+- Activable / désactivable depuis le profil
+- 3 niveaux de difficulté (Débutant / Intermédiaire / Avancé) — exercices, séries et reps/temps adaptés
+- Rappel quotidien à heure fixe configurable (notification DAILY)
+- Player dédié avec checklist par exercice et timer intégré pour les exos chronométrés (planches, mountain climbers…)
+- Streak journalier (reset si un jour est manqué)
+- Badges dédiés intégrés au système d'achievements : 1ère routine, streak 7j, streak 30j, 50 routines totales
+
 #### Langue
 - Sélecteur FR / EN en bas du profil, persisté dans AsyncStorage et appliqué immédiatement
 
@@ -274,6 +283,7 @@ NokkaApp/
 │   │   ├── geminiService.ts
 │   │   ├── offlineQueue.ts       # File d'attente offline (AsyncStorage)
 │   │   ├── creatineReminder.ts   # Rappels créatine (interval / heure fixe)
+│   │   ├── absRoutine.ts         # Routine abdos (settings, streak, notifs DAILY)
 │   │   └── calorieCalculations.ts
 │   ├── hooks/
 │   │   └── useNetworkSync.ts  # Détection réseau + flush offline queue

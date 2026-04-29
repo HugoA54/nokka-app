@@ -16,6 +16,7 @@ import { useChallengeStore } from '@store/challengeStore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { setupTimerNotificationChannel, requestTimerPermissions } from '@services/timerNotifications';
 import { initCreatineReminder, startCreatineAppStateListener } from '@services/creatineReminder';
+import { initAbsRoutine, startAbsAppStateListener } from '@services/absRoutine';
 import { useNetworkSync } from '@hooks/useNetworkSync';
 import { registerWidgetTaskHandler } from 'react-native-android-widget';
 import { widgetTaskHandler } from '@widgets/widgetTaskHandler';
@@ -66,12 +67,14 @@ export default function RootLayout() {
     requestTimerPermissions();
     initCreatineReminder();
     const creatineSub = startCreatineAppStateListener();
+    initAbsRoutine();
+    const absSub = startAbsAppStateListener();
 
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') hideNavBar();
     });
 
-    return () => { sub.remove(); creatineSub(); };
+    return () => { sub.remove(); creatineSub(); absSub(); };
   }, []);
 
   if (!isInitialized || !i18nReady) return null;
@@ -122,6 +125,10 @@ export default function RootLayout() {
           <Stack.Screen
             name="templates/[id]"
             options={{ title: i18n.t('templates.title'), headerBackTitle: 'Back' }}
+          />
+          <Stack.Screen
+            name="abs-routine"
+            options={{ title: i18n.t('abs.player.title'), headerBackTitle: 'Back' }}
           />
         </Stack>
         <ToastContainer />
